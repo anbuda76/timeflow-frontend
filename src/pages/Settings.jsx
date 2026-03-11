@@ -68,7 +68,7 @@ const [uploadingLogo, setUploadingLogo] = useState(false);
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updated = await updateMyOrganization({
+        const updated = await updateMyOrganization({
         name: form.name,
         primary_color: form.primary_color,
         logo_url: form.logo_url || null,
