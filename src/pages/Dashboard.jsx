@@ -1,14 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { logout } from '../api/auth';
 import useAuthStore from '../store/authStore';
+import AppHeader from '../components/AppHeader';
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-  };
 
   const menuItems = {
     super_admin: [
@@ -36,41 +32,10 @@ export default function Dashboard() {
   };
 
   const items = menuItems[user?.role] || menuItems.employee;
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-blue-600">⏱ TimeFlow</h1>
-          <div className="flex items-center gap-4">
-            {isAdmin && (
-              <button
-                onClick={() => navigate('/settings')}
-                className="text-sm text-gray-500 hover:text-gray-700"
-                title="Impostazioni azienda"
-              >
-                ⚙️
-              </button>
-            )}
-            <span className="text-gray-600">
-              {user?.first_name} {user?.last_name}
-              <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                {user?.role}
-              </span>
-            </span>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-red-500 hover:text-red-700"
-            >
-              Esci
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main */}
+      <AppHeader />
       <main className="max-w-6xl mx-auto px-4 py-8">
         <h2 className="text-xl font-semibold text-gray-800 mb-6">
           Benvenuto, {user?.first_name}!

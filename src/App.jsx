@@ -7,8 +7,9 @@ import Users from './pages/Users';
 import Projects from './pages/Projects';
 import Approvals from './pages/Approvals';
 import Reports from './pages/Reports';
-import PrivateRoute from './components/PrivateRoute';
 import Settings from './pages/Settings';
+import PrivateRoute from './components/PrivateRoute';
+import Organizations from './pages/Organizations';
 
 export default function App() {
   return (
@@ -16,15 +17,46 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/timesheet" element={<PrivateRoute><Timesheet /></PrivateRoute>} />
-        <Route path="/users" element={<PrivateRoute><Users /></PrivateRoute>} />
-        <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
-        <Route path="/approvals" element={<PrivateRoute><Approvals /></PrivateRoute>} />
-        <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
+        <Route path="/dashboard" element={
+          <PrivateRoute><Dashboard /></PrivateRoute>
+        } />
+        <Route path="/timesheet" element={
+          <PrivateRoute roles={['admin', 'super_admin', 'manager', 'employee']}>
+            <Timesheet />
+          </PrivateRoute>
+        } />
+        <Route path="/users" element={
+          <PrivateRoute roles={['admin', 'super_admin', 'manager']}>
+            <Users />
+          </PrivateRoute>
+        } />
+        <Route path="/projects" element={
+          <PrivateRoute roles={['admin', 'super_admin', 'manager', 'employee']}>
+            <Projects />
+          </PrivateRoute>
+        } />
+	<Route path="/organizations" element={
+  	  <PrivateRoute roles={['super_admin']}>
+    	   <Organizations />
+  	  </PrivateRoute>
+	} />
+        <Route path="/approvals" element={
+          <PrivateRoute roles={['admin', 'super_admin', 'manager']}>
+            <Approvals />
+          </PrivateRoute>
+        } />
+        <Route path="/reports" element={
+          <PrivateRoute roles={['admin', 'super_admin', 'manager']}>
+            <Reports />
+          </PrivateRoute>
+        } />
+        <Route path="/settings" element={
+          <PrivateRoute roles={['admin', 'super_admin']}>
+            <Settings />
+          </PrivateRoute>
+        } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-	<Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getMyOrganization, updateMyOrganization } from '../api/register';
-import useAuthStore from '../store/authStore';
+import { useBrand } from '../context/BrandContext';
+import AppHeader from '../components/AppHeader';
 
 const PRESET_COLORS = [
   '#1d4ed8', '#0891b2', '#059669', '#d97706',
@@ -9,8 +9,7 @@ const PRESET_COLORS = [
 ];
 
 export default function Settings() {
-  const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
+  const { refreshBrand } = useBrand();
   const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,6 +42,7 @@ export default function Settings() {
         logo_url: form.logo_url || null,
       });
       setOrg(updated);
+      await refreshBrand();
       setMessage('✅ Impostazioni salvate!');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
@@ -60,25 +60,7 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header preview con colore scelto */}
-      <header style={{ backgroundColor: form.primary_color }} className="shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="text-white opacity-70 hover:opacity-100"
-            >
-              ← Dashboard
-            </button>
-            {form.logo_url ? (
-              <img src={form.logo_url} alt="Logo" className="h-8 object-contain" />
-            ) : (
-              <span className="text-white font-bold text-xl">⏱ {form.name || 'TimeFlow'}</span>
-            )}
-          </div>
-          <span className="text-white text-sm opacity-70">Anteprima header</span>
-        </div>
-      </header>
+      <AppHeader />
 
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
@@ -86,12 +68,23 @@ export default function Settings() {
           {message && <span className="text-sm">{message}</span>}
         </div>
 
+        {/* Anteprima header con colore scelto */}
+        <div className="mb-6 rounded-xl overflow-hidden shadow-sm">
+          <div style={{ backgroundColor: form.primary_color }} className="px-6 py-4 flex items-center gap-3">
+            {form.logo_url ? (
+              <img src={form.logo_url} alt="Logo" className="h-8 object-contain"
+                onError={e => { e.target.style.display = 'none'; }} />
+            ) : (
+              <span className="text-white font-bold text-lg">⏱ {form.name || 'TimeFlow'}</span>
+            )}
+            <span className="text-white opacity-60 text-sm ml-auto">Anteprima</span>
+          </div>
+        </div>
+
         <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
           {/* Nome azienda */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nome azienda
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nome azienda</label>
             <input
               type="text"
               value={form.name}
@@ -102,9 +95,7 @@ export default function Settings() {
 
           {/* Logo URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              URL Logo
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">URL Logo</label>
             <input
               type="url"
               value={form.logo_url}
@@ -113,26 +104,20 @@ export default function Settings() {
               placeholder="https://esempio.com/logo.png"
             />
             <p className="text-xs text-gray-400 mt-1">
-              Inserisci l'URL pubblico del tuo logo. Puoi usare servizi come imgur.com per ospitare l'immagine.
+              Inserisci l'URL pubblico del tuo logo. Puoi usare imgur.com per ospitare l'immagine.
             </p>
             {form.logo_url && (
               <div className="mt-2 p-3 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-500 mb-2">Anteprima logo:</p>
-                <img
-                  src={form.logo_url}
-                  alt="Logo preview"
-                  className="h-12 object-contain"
-                  onError={e => { e.target.style.display = 'none'; }}
-                />
+                <img src={form.logo_url} alt="Logo preview" className="h-12 object-contain"
+                  onError={e => { e.target.style.display = 'none'; }} />
               </div>
             )}
           </div>
 
           {/* Colore primario */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Colore header
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Colore header</label>
             <div className="flex flex-wrap gap-3 mb-3">
               {PRESET_COLORS.map(color => (
                 <button
@@ -163,9 +148,7 @@ export default function Settings() {
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium capitalize">
                 {org?.subscription_plan || 'free'}
               </span>
-              <span className="text-sm text-gray-500">
-                Max {org?.max_users} utenti
-              </span>
+              <span className="text-sm text-gray-500">Max {org?.max_users} utenti</span>
             </div>
           </div>
 
