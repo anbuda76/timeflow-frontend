@@ -16,18 +16,18 @@ export default function Dashboard() {
     admin: [
       { label: '👥 Utenti', path: '/users' },
       { label: '📁 Progetti', path: '/projects' },
+      { label: '✅ Approvazioni', path: '/approvals' },
       { label: '📊 Report Costi', path: '/reports' },
       { label: '📅 Calendario', path: '/calendar' },
       { label: '⚙️ Impostazioni', path: '/settings' },
     ],
     manager: [
       { label: '✅ Approvazioni', path: '/approvals' },
-      { label: '📁 Progetti', path: '/projects' },
+      { label: '⏱ Il Mio Timesheet', path: '/timesheet' },
       { label: '📊 Report Costi', path: '/reports' },
     ],
     employee: [
       { label: '⏱ Il Mio Timesheet', path: '/timesheet' },
-      { label: '📁 I Miei Progetti', path: '/projects' },
     ],
   };
 

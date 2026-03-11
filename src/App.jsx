@@ -31,7 +31,7 @@ export default function App() {
           </PrivateRoute>
         } />
         <Route path="/projects" element={
-          <PrivateRoute roles={['admin', 'super_admin', 'manager', 'employee']}>
+          <PrivateRoute roles={['admin', 'super_admin']}>
             <Projects />
           </PrivateRoute>
         } />
@@ -46,7 +46,7 @@ export default function App() {
           </PrivateRoute>
         } />
         <Route path="/reports" element={
-          <PrivateRoute roles={['admin', 'super_admin', 'manager']}>
+          <PrivateRoute roles={['admin', 'super_admin']}>
             <Reports />
           </PrivateRoute>
         } />
