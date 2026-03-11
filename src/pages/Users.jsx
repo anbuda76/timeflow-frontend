@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getUsers, createUser, updateUser } from '../api/users';
+import AppHeader from '../components/AppHeader';
 
 const ROLES = ['employee', 'manager', 'admin'];
 const ROLE_COLORS = {
@@ -16,7 +16,6 @@ const emptyForm = {
 };
 
 export default function Users() {
-  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -89,7 +88,6 @@ export default function Users() {
       setShowModal(false);
     } catch (err) {
       const detail = err.response?.data?.detail;
-      console.log('Errore API:', JSON.stringify(err.response?.data));
       setError(typeof detail === 'string' ? detail : 'Errore nel salvataggio');
     } finally {
       setSaving(false);
@@ -100,7 +98,7 @@ export default function Users() {
     try {
       const updated = await updateUser(user.id, { is_active: !user.is_active });
       setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-    } catch (err) {
+    } catch {
       alert('Errore nell\'aggiornamento');
     }
   };
@@ -118,15 +116,11 @@ export default function Users() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-gray-600">
-              ← Dashboard
-            </button>
-            <h1 className="text-xl font-bold text-blue-600">👥 Gestione Utenti</h1>
-          </div>
+      <AppHeader />
+
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold text-gray-800">👥 Gestione Utenti</h1>
           <button
             onClick={openCreate}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
@@ -134,9 +128,7 @@ export default function Users() {
             + Nuovo Utente
           </button>
         </div>
-      </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Search */}
         <input
           type="text"
@@ -195,7 +187,9 @@ export default function Users() {
                     {user.hourly_rate ? `€${user.hourly_rate}/h` : '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                    }`}>
                       {user.is_active ? 'Attivo' : 'Disattivo'}
                     </span>
                   </td>
@@ -208,7 +202,9 @@ export default function Users() {
                     </button>
                     <button
                       onClick={() => handleToggleActive(user)}
-                      className={`text-xs font-medium ${user.is_active ? 'text-red-500 hover:text-red-700' : 'text-green-600 hover:text-green-800'}`}
+                      className={`text-xs font-medium ${
+                        user.is_active ? 'text-red-500 hover:text-red-700' : 'text-green-600 hover:text-green-800'
+                      }`}
                     >
                       {user.is_active ? 'Disattiva' : 'Attiva'}
                     </button>
@@ -319,11 +315,13 @@ export default function Users() {
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">— Nessun manager —</option>
-                    {users.filter(u => u.role === 'manager' || u.role === 'admin' || u.role === 'super_admin').map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.first_name} {u.last_name} ({u.role})
-                      </option>
-                    ))}
+                    {users
+                      .filter(u => u.role === 'manager' || u.role === 'admin' || u.role === 'super_admin')
+                      .map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.first_name} {u.last_name} ({u.role})
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}

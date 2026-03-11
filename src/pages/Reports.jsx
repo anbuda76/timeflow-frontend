@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getCostReport } from '../api/reports';
 import { getProjects } from '../api/projects';
+import AppHeader from '../components/AppHeader';
 
 const MONTHS = [
   'Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -9,7 +9,6 @@ const MONTHS = [
 ];
 
 export default function Reports() {
-  const navigate = useNavigate();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(null);
@@ -42,19 +41,11 @@ export default function Reports() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-gray-600">
-              ← Dashboard
-            </button>
-            <h1 className="text-xl font-bold text-blue-600">📊 Report Costi</h1>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <div className="max-w-6xl mx-auto px-4 py-6">
+        <h1 className="text-xl font-bold text-gray-800 mb-4">📊 Report Costi</h1>
+
         {/* Filtri */}
         <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
           <div>
@@ -107,7 +98,7 @@ export default function Reports() {
           </button>
         </div>
 
-        {/* Report */}
+        {/* Placeholder */}
         {!report && !loading && (
           <div className="bg-white rounded-xl p-12 text-center text-gray-400">
             Seleziona i filtri e clicca "Genera Report"

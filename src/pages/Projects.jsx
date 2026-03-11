@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getProjects, createProject, updateProject, assignUser, unassignUser } from '../api/projects';
 import { getUsers } from '../api/users';
+import AppHeader from '../components/AppHeader';
 
 const emptyForm = { name: '', client_name: '', budget_hours: '' };
 
 export default function Projects() {
-  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,18 +80,18 @@ export default function Projects() {
     try {
       const updated = await updateProject(project.id, { is_active: !project.is_active });
       setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
-    } catch (err) {
+    } catch {
       alert('Errore nell\'aggiornamento');
     }
   };
 
-const handleAssign = async (userId) => {
+  const handleAssign = async (userId) => {
     try {
       await assignUser(assignProject.id, userId);
       const updated = await getProjects();
       setProjects(updated);
       setAssignProject(updated.find(p => p.id === assignProject.id));
-    } catch (err) {
+    } catch {
       alert('Errore nell\'assegnazione');
     }
   };
@@ -103,14 +102,9 @@ const handleAssign = async (userId) => {
       const updated = await getProjects();
       setProjects(updated);
       setAssignProject(updated.find(p => p.id === assignProject.id));
-    } catch (err) {
+    } catch {
       alert('Errore nella rimozione');
     }
-  };
-
-  const getProjectUsers = (project) => {
-    if (!project.assignments) return [];
-    return project.assignments.map(a => users.find(u => u.id === a.user_id)).filter(Boolean);
   };
 
   const budgetPercent = (project) => {
@@ -126,15 +120,11 @@ const handleAssign = async (userId) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-gray-600">
-              ← Dashboard
-            </button>
-            <h1 className="text-xl font-bold text-blue-600">📁 Gestione Progetti</h1>
-          </div>
+      <AppHeader />
+
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold text-gray-800">📁 Gestione Progetti</h1>
           <button
             onClick={openCreate}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
@@ -142,9 +132,7 @@ const handleAssign = async (userId) => {
             + Nuovo Progetto
           </button>
         </div>
-      </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Search */}
         <input
           type="text"
@@ -165,7 +153,9 @@ const handleAssign = async (userId) => {
             <p className="text-sm text-gray-500">Attivi</p>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-            <p className="text-2xl font-bold text-gray-500">{projects.reduce((sum, p) => sum + (p.used_hours || 0), 0)}h</p>
+            <p className="text-2xl font-bold text-gray-500">
+              {projects.reduce((sum, p) => sum + (p.used_hours || 0), 0)}h
+            </p>
             <p className="text-sm text-gray-500">Ore totali lavorate</p>
           </div>
         </div>
@@ -184,12 +174,13 @@ const handleAssign = async (userId) => {
                       <p className="text-sm text-gray-500">{project.client_name}</p>
                     )}
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${project.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    project.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
                     {project.is_active ? 'Attivo' : 'Chiuso'}
                   </span>
                 </div>
 
-                {/* Budget bar */}
                 {project.budget_hours && (
                   <div className="mb-3">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -223,7 +214,9 @@ const handleAssign = async (userId) => {
                   </button>
                   <button
                     onClick={() => handleToggleActive(project)}
-                    className={`text-sm px-3 py-1.5 rounded-lg ${project.is_active ? 'text-red-500 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
+                    className={`text-sm px-3 py-1.5 rounded-lg ${
+                      project.is_active ? 'text-red-500 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'
+                    }`}
                   >
                     {project.is_active ? '🔒' : '🔓'}
                   </button>
@@ -234,9 +227,7 @@ const handleAssign = async (userId) => {
         </div>
 
         {filtered.length === 0 && (
-          <div className="text-center text-gray-400 py-12">
-            Nessun progetto trovato
-          </div>
+          <div className="text-center text-gray-400 py-12">Nessun progetto trovato</div>
         )}
       </div>
 
@@ -304,9 +295,7 @@ const handleAssign = async (userId) => {
       {showAssignModal && assignProject && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-bold text-gray-800 mb-1">
-              👥 Assegna utenti
-            </h2>
+            <h2 className="text-lg font-bold text-gray-800 mb-1">👥 Assegna utenti</h2>
             <p className="text-sm text-gray-500 mb-4">{assignProject.name}</p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {users.filter(u => u.is_active).map(user => {
@@ -319,7 +308,9 @@ const handleAssign = async (userId) => {
                     </div>
                     <button
                       onClick={() => assigned ? handleUnassign(user.id) : handleAssign(user.id)}
-                      className={`text-xs px-3 py-1.5 rounded-lg font-medium ${assigned ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'}`}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium ${
+                        assigned ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                      }`}
                     >
                       {assigned ? 'Rimuovi' : 'Assegna'}
                     </button>

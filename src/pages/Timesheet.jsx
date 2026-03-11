@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   getTimesheets, getTimesheet, createTimesheet,
   saveEntries, submitTimesheet, getProjects, getHolidays
 } from '../api/timesheets';
+import AppHeader from '../components/AppHeader';
 
 const MONTHS = [
   'Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -18,7 +18,6 @@ const isWeekend = (year, month, day) => {
 const padDate = (n) => String(n).padStart(2, '0');
 
 export default function Timesheet() {
-  const navigate = useNavigate();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -51,7 +50,6 @@ export default function Timesheet() {
       if (allTimesheets.length > 0) {
         const full = await getTimesheet(allTimesheets[0].id);
         setTimesheet(full);
-        // Costruisce la mappa entries: { "projId-day": hours }
         const map = {};
         full.entries.forEach(e => {
           const day = parseInt(e.entry_date.split('-')[2]);
@@ -104,7 +102,7 @@ export default function Timesheet() {
       setTimesheet(updated);
       setMessage('✅ Salvato!');
       setTimeout(() => setMessage(''), 2000);
-    } catch (err) {
+    } catch {
       setMessage('❌ Errore nel salvataggio');
     } finally {
       setSaving(false);
@@ -119,7 +117,7 @@ export default function Timesheet() {
       setTimesheet(updated);
       setMessage('✅ Timesheet inviato per approvazione!');
       setTimeout(() => setMessage(''), 3000);
-    } catch (err) {
+    } catch {
       setMessage('❌ Errore nell\'invio');
     }
   };
@@ -128,7 +126,6 @@ export default function Timesheet() {
   const workingDays = Array.from({ length: getDaysInMonth(year, month) }, (_, i) => i + 1)
     .filter(d => !isWeekend(year, month, d) && !isHoliday(d)).length;
   const expectedHours = workingDays * 8;
-
   const days = Array.from({ length: getDaysInMonth(year, month) }, (_, i) => i + 1);
 
   const statusColor = {
@@ -148,14 +145,28 @@ export default function Timesheet() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-full mx-auto px-4 py-4 flex justify-between items-center">
+      <AppHeader />
+
+      <div className="max-w-full mx-auto px-4 py-6">
+        {/* Selettore mese + azioni */}
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-gray-600">
-              ← Dashboard
-            </button>
-            <h1 className="text-xl font-bold text-blue-600">⏱ Timesheet</h1>
+            <button
+              onClick={() => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); }}
+              className="p-2 rounded-lg hover:bg-gray-200"
+            >←</button>
+            <h2 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
+              {MONTHS[month - 1]} {year}
+            </h2>
+            <button
+              onClick={() => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); }}
+              className="p-2 rounded-lg hover:bg-gray-200"
+            >→</button>
+            {timesheet && (
+              <span className={`ml-4 px-3 py-1 rounded-full text-sm font-medium ${statusColor[timesheet.status]}`}>
+                {timesheet.status}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {message && <span className="text-sm">{message}</span>}
@@ -178,29 +189,6 @@ export default function Timesheet() {
             )}
           </div>
         </div>
-      </header>
-
-      <div className="max-w-full mx-auto px-4 py-6">
-        {/* Selettore mese */}
-        <div className="flex items-center gap-4 mb-6">
-          <button
-            onClick={() => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); }}
-            className="p-2 rounded-lg hover:bg-gray-200"
-          >←</button>
-          <h2 className="text-xl font-semibold text-gray-800 min-w-48 text-center">
-            {MONTHS[month - 1]} {year}
-          </h2>
-          <button
-            onClick={() => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); }}
-            className="p-2 rounded-lg hover:bg-gray-200"
-          >→</button>
-
-          {timesheet && (
-            <span className={`ml-4 px-3 py-1 rounded-full text-sm font-medium ${statusColor[timesheet.status]}`}>
-              {timesheet.status}
-            </span>
-          )}
-        </div>
 
         {/* KPI */}
         <div className="grid grid-cols-3 gap-4 mb-6">
@@ -212,7 +200,7 @@ export default function Timesheet() {
             <p className="text-2xl font-bold text-gray-700">{expectedHours}h</p>
             <p className="text-sm text-gray-500">Ore previste</p>
           </div>
-          <div className={`bg-white rounded-xl p-4 shadow-sm text-center`}>
+          <div className="bg-white rounded-xl p-4 shadow-sm text-center">
             <p className={`text-2xl font-bold ${totalHours >= expectedHours ? 'text-green-600' : 'text-orange-500'}`}>
               {totalHours - expectedHours > 0 ? '+' : ''}{totalHours - expectedHours}h
             </p>
@@ -234,7 +222,7 @@ export default function Timesheet() {
                     Progetto
                   </th>
                   {days.map(day => (
-                    <th key={day} className={`px-1 py-3 text-center font-medium min-w-10 
+                    <th key={day} className={`px-1 py-3 text-center font-medium min-w-10
                       ${isWeekend(year, month, day) ? 'bg-gray-50 text-gray-400' : ''}
                       ${isHoliday(day) ? 'bg-orange-50 text-orange-400' : ''}
                     `}>

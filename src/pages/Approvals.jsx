@@ -1,9 +1,8 @@
 import api from '../api/client';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getTimesheet, reviewTimesheet } from '../api/approvals';
-import { getTimesheets } from '../api/timesheets';
 import { getUsers } from '../api/users';
+import AppHeader from '../components/AppHeader';
 
 const MONTHS = [
   'Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -25,7 +24,6 @@ const STATUS_LABELS = {
 };
 
 export default function Approvals() {
-  const navigate = useNavigate();
   const [timesheets, setTimesheets] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,10 +37,7 @@ export default function Approvals() {
 
   useEffect(() => {
     api.get('/timesheets')
-      .then(r => {
-        console.log('response raw:', r.status, r.data);
-        setTimesheets(r.data);
-      })
+      .then(r => setTimesheets(r.data))
       .catch(err => console.log('ERRORE:', err.response?.status, err.response?.data));
     getUsers().then(setUsers).finally(() => setLoading(false));
   }, []);
@@ -52,7 +47,6 @@ export default function Approvals() {
     return u ? `${u.first_name} ${u.last_name}` : `Utente #${userId}`;
   };
 
-  console.log('timesheets:', timesheets);
   const filtered = timesheets.filter(ts =>
     filter === 'all' ? true : ts.status === filter
   );
@@ -77,7 +71,7 @@ export default function Approvals() {
       setSelectedTs(updated);
       setMessage('✅ Timesheet approvato!');
       setTimeout(() => setMessage(''), 3000);
-    } catch (err) {
+    } catch {
       setMessage('❌ Errore nell\'approvazione');
     } finally {
       setSaving(false);
@@ -95,7 +89,7 @@ export default function Approvals() {
       setRejectionNote('');
       setMessage('Timesheet rifiutato');
       setTimeout(() => setMessage(''), 3000);
-    } catch (err) {
+    } catch {
       setMessage('❌ Errore nel rifiuto');
     } finally {
       setSaving(false);
@@ -110,174 +104,163 @@ export default function Approvals() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-gray-600">
-              ← Dashboard
-            </button>
-            <h1 className="text-xl font-bold text-blue-600">✅ Approvazioni Timesheet</h1>
-          </div>
+      <AppHeader />
+
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold text-gray-800">✅ Approvazioni Timesheet</h1>
           {message && <span className="text-sm">{message}</span>}
         </div>
-      </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 flex gap-6">
-        {/* Lista sinistra */}
-        <div className="w-80 flex-shrink-0">
-          {/* Filtro */}
-          <div className="flex gap-2 mb-4">
-            {['submitted', 'approved', 'rejected', 'all'].map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`text-xs px-3 py-1.5 rounded-full font-medium transition ${
-                  filter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-300'
-                }`}
-              >
-                {f === 'submitted' ? 'In attesa' : f === 'all' ? 'Tutti' : STATUS_LABELS[f]}
-                {f === 'submitted' && (
-                  <span className="ml-1 bg-yellow-400 text-white rounded-full px-1.5 text-xs">
-                    {timesheets.filter(ts => ts.status === 'submitted').length}
-                  </span>
-                )}
-              </button>
-            ))}
+        <div className="flex gap-6">
+          {/* Lista sinistra */}
+          <div className="w-80 flex-shrink-0">
+            <div className="flex gap-2 mb-4">
+              {['submitted', 'approved', 'rejected', 'all'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`text-xs px-3 py-1.5 rounded-full font-medium transition ${
+                    filter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-300'
+                  }`}
+                >
+                  {f === 'submitted' ? 'In attesa' : f === 'all' ? 'Tutti' : STATUS_LABELS[f]}
+                  {f === 'submitted' && (
+                    <span className="ml-1 bg-yellow-400 text-white rounded-full px-1.5 text-xs">
+                      {timesheets.filter(ts => ts.status === 'submitted').length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              {filtered.length === 0 && (
+                <p className="text-center text-gray-400 py-8 text-sm">Nessun timesheet</p>
+              )}
+              {filtered.map(ts => (
+                <button
+                  key={ts.id}
+                  onClick={() => openDetail(ts)}
+                  className={`w-full text-left bg-white rounded-xl p-4 shadow-sm border transition hover:border-blue-300 ${
+                    selectedTs?.id === ts.id ? 'border-blue-400' : 'border-transparent'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-gray-800 text-sm">{getUserName(ts.user_id)}</p>
+                      <p className="text-xs text-gray-500">{MONTHS[ts.month - 1]} {ts.year}</p>
+                      <p className="text-xs text-blue-600 mt-1">{ts.total_hours}h totali</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[ts.status]}`}>
+                      {STATUS_LABELS[ts.status]}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            {filtered.length === 0 && (
-              <p className="text-center text-gray-400 py-8 text-sm">Nessun timesheet</p>
+          {/* Dettaglio destra */}
+          <div className="flex-1">
+            {detailLoading && (
+              <div className="bg-white rounded-xl p-8 text-center text-gray-400">
+                Caricamento dettaglio...
+              </div>
             )}
-            {filtered.map(ts => (
-              <button
-                key={ts.id}
-                onClick={() => openDetail(ts)}
-                className={`w-full text-left bg-white rounded-xl p-4 shadow-sm border transition hover:border-blue-300 ${
-                  selectedTs?.id === ts.id ? 'border-blue-400' : 'border-transparent'
-                }`}
-              >
-                <div className="flex justify-between items-start">
+
+            {!detailLoading && !selectedTs && (
+              <div className="bg-white rounded-xl p-8 text-center text-gray-400">
+                Seleziona un timesheet dalla lista per visualizzarlo
+              </div>
+            )}
+
+            {!detailLoading && selectedTs && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex justify-between items-start mb-6">
                   <div>
-                    <p className="font-medium text-gray-800 text-sm">{getUserName(ts.user_id)}</p>
-                    <p className="text-xs text-gray-500">{MONTHS[ts.month - 1]} {ts.year}</p>
-                    <p className="text-xs text-blue-600 mt-1">{ts.total_hours}h totali</p>
+                    <h2 className="text-lg font-bold text-gray-800">
+                      {getUserName(selectedTs.user_id)}
+                    </h2>
+                    <p className="text-gray-500">{MONTHS[selectedTs.month - 1]} {selectedTs.year}</p>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[ts.status]}`}>
-                    {STATUS_LABELS[ts.status]}
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[selectedTs.status]}`}>
+                    {STATUS_LABELS[selectedTs.status]}
                   </span>
                 </div>
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Dettaglio destra */}
-        <div className="flex-1">
-          {detailLoading && (
-            <div className="bg-white rounded-xl p-8 text-center text-gray-400">
-              Caricamento dettaglio...
-            </div>
-          )}
-
-          {!detailLoading && !selectedTs && (
-            <div className="bg-white rounded-xl p-8 text-center text-gray-400">
-              Seleziona un timesheet dalla lista per visualizzarlo
-            </div>
-          )}
-
-          {!detailLoading && selectedTs && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              {/* Header dettaglio */}
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">
-                    {getUserName(selectedTs.user_id)}
-                  </h2>
-                  <p className="text-gray-500">{MONTHS[selectedTs.month - 1]} {selectedTs.year}</p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[selectedTs.status]}`}>
-                  {STATUS_LABELS[selectedTs.status]}
-                </span>
-              </div>
-
-              {/* KPI */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-blue-50 rounded-xl p-4 text-center">
-                  <p className="text-2xl font-bold text-blue-600">{selectedTs.total_hours}h</p>
-                  <p className="text-sm text-gray-500">Ore totali</p>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
-                  <p className="text-2xl font-bold text-gray-700">{selectedTs.entries?.length || 0}</p>
-                  <p className="text-sm text-gray-500">Giorni lavorati</p>
-                </div>
-              </div>
-
-              {/* Note */}
-              {selectedTs.notes && (
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-gray-600"><strong>Note:</strong> {selectedTs.notes}</p>
-                </div>
-              )}
-
-              {/* Rejection note */}
-              {selectedTs.rejection_note && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-red-700"><strong>Motivo rifiuto:</strong> {selectedTs.rejection_note}</p>
-                </div>
-              )}
-
-              {/* Entries per progetto */}
-              {selectedTs.entries && selectedTs.entries.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Ore per giorno</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-xs">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="px-3 py-2 text-left text-gray-600">Data</th>
-                          <th className="px-3 py-2 text-left text-gray-600">Progetto</th>
-                          <th className="px-3 py-2 text-right text-gray-600">Ore</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedTs.entries
-                          .sort((a, b) => a.entry_date.localeCompare(b.entry_date))
-                          .map(entry => (
-                          <tr key={entry.id} className="border-b">
-                            <td className="px-3 py-2 text-gray-700">{entry.entry_date}</td>
-                            <td className="px-3 py-2 text-gray-600">Progetto #{entry.project_id}</td>
-                            <td className="px-3 py-2 text-right font-medium text-blue-600">{entry.hours}h</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-blue-50 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-blue-600">{selectedTs.total_hours}h</p>
+                    <p className="text-sm text-gray-500">Ore totali</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-gray-700">{selectedTs.entries?.length || 0}</p>
+                    <p className="text-sm text-gray-500">Giorni lavorati</p>
                   </div>
                 </div>
-              )}
 
-              {/* Azioni */}
-              {selectedTs.status === 'submitted' && (
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleApprove}
-                    disabled={saving}
-                    className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
-                  >
-                    ✅ Approva
-                  </button>
-                  <button
-                    onClick={() => setShowRejectModal(true)}
-                    disabled={saving}
-                    className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 disabled:opacity-50"
-                  >
-                    ❌ Rifiuta
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+                {selectedTs.notes && (
+                  <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-gray-600"><strong>Note:</strong> {selectedTs.notes}</p>
+                  </div>
+                )}
+
+                {selectedTs.rejection_note && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-red-700"><strong>Motivo rifiuto:</strong> {selectedTs.rejection_note}</p>
+                  </div>
+                )}
+
+                {selectedTs.entries && selectedTs.entries.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Ore per giorno</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="px-3 py-2 text-left text-gray-600">Data</th>
+                            <th className="px-3 py-2 text-left text-gray-600">Progetto</th>
+                            <th className="px-3 py-2 text-right text-gray-600">Ore</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedTs.entries
+                            .sort((a, b) => a.entry_date.localeCompare(b.entry_date))
+                            .map(entry => (
+                            <tr key={entry.id} className="border-b">
+                              <td className="px-3 py-2 text-gray-700">{entry.entry_date}</td>
+                              <td className="px-3 py-2 text-gray-600">Progetto #{entry.project_id}</td>
+                              <td className="px-3 py-2 text-right font-medium text-blue-600">{entry.hours}h</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {selectedTs.status === 'submitted' && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleApprove}
+                      disabled={saving}
+                      className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+                    >
+                      ✅ Approva
+                    </button>
+                    <button
+                      onClick={() => setShowRejectModal(true)}
+                      disabled={saving}
+                      className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 disabled:opacity-50"
+                    >
+                      ❌ Rifiuta
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
