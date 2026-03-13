@@ -89,7 +89,8 @@ export default function Calendar() {
   };
 
   // Raggruppa per mese
-  const byMonth = MONTHS.map((monthName, i) => ({
+    const nationalLoaded = holidays.some(h => h.type === 'national');
+    const byMonth = MONTHS.map((monthName, i) => ({
     monthName,
     monthNum: i + 1,
     holidays: holidays.filter(h => {
@@ -123,10 +124,15 @@ export default function Calendar() {
             {message && <span className="text-sm">{message}</span>}
             <button
               onClick={handlePreload}
-              disabled={preloading}
-              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50"
+              disabled={preloading || nationalLoaded}
+              title={nationalLoaded ? `Festività nazionali già caricate per il ${year}` : `Carica automaticamente le festività nazionali italiane per il ${year}`}
+              className={`px-4 py-2 rounded-lg text-sm transition ${
+                nationalLoaded
+                  ? 'bg-green-100 text-green-700 cursor-default'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              } disabled:opacity-70`}
             >
-              {preloading ? 'Caricamento...' : `🇮🇹 Carica festività ${year}`}
+              {preloading ? 'Caricamento...' : nationalLoaded ? `✅ Festività ${year} caricate` : `🇮🇹 Carica festività ${year}`}
             </button>
             <button
               onClick={() => setShowModal(true)}
