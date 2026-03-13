@@ -10,6 +10,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import PrivateRoute from './components/PrivateRoute';
 import Organizations from './pages/Organizations';
+import Calendar from './pages/Calendar';
 
 export default function App() {
   return (
@@ -55,6 +56,11 @@ export default function App() {
             <Settings />
           </PrivateRoute>
         } />
+	<Route path="/calendar" element={
+  	 <PrivateRoute roles={['admin', 'super_admin']}>
+    	   <Calendar />
+  	</PrivateRoute>
+	} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
