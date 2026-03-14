@@ -24,7 +24,8 @@ export default function Projects() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = projects.filter(p =>
+    const filtered = projects.filter(p =>
+    !p.is_system &&
     `${p.name} ${p.client_name || ''}`.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -145,16 +146,16 @@ export default function Projects() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-            <p className="text-2xl font-bold text-blue-600">{projects.length}</p>
+            <p className="text-2xl font-bold text-blue-600">{projects.filter(p => !p.is_system).length}</p>
             <p className="text-sm text-gray-500">Progetti totali</p>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-            <p className="text-2xl font-bold text-green-600">{projects.filter(p => p.is_active).length}</p>
+            <p className="text-2xl font-bold text-green-600">{projects.filter(p => !p.is_system && p.is_active).length}</p>
             <p className="text-sm text-gray-500">Attivi</p>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm text-center">
             <p className="text-2xl font-bold text-gray-500">
-              {projects.reduce((sum, p) => sum + (p.used_hours || 0), 0)}h
+              {projects.filter(p => !p.is_system).reduce((sum, p) => sum + (p.used_hours || 0), 0)}h
             </p>
             <p className="text-sm text-gray-500">Ore totali lavorate</p>
           </div>
