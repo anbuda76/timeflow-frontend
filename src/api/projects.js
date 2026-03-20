@@ -1,7 +1,7 @@
 import api from './client';
 
 export const getProjects = () =>
-  api.get('/projects').then(r => r.data);
+  api.get('/projects/').then(r => r.data);
 
 export const createProject = (data) =>
   api.post('/projects', data).then(r => r.data);

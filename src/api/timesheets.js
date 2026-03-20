@@ -16,7 +16,7 @@ export const submitTimesheet = (id, notes) =>
   api.post(`/timesheets/${id}/submit`, { notes }).then(r => r.data);
 
 export const getProjects = () =>
-  api.get('/projects').then(r => r.data);
+  api.get('/projects/').then(r => r.data);
 
 export const getHolidays = (year) =>
   api.get('/holidays', { params: { year } }).then(r => r.data);
