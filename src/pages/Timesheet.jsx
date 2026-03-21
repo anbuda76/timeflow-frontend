@@ -398,13 +398,33 @@ export default function Timesheet() {
           </div>
         )}
 
-        {/* Totale generale */}
-        <div className="mt-4 bg-blue-50 rounded-xl p-4 flex justify-between items-center">
-          <span className="font-semibold text-gray-700">Totale generale (Progetti + Assenze)</span>
-          <span className="text-2xl font-bold text-blue-600">
-            {Object.values(entries).reduce((sum, h) => sum + (h || 0), 0)}h
-          </span>
-	</div>
+        {/* Totale generale per giorno */}
+        <div className="mt-4 bg-white rounded-xl shadow-sm overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <tbody>
+              <tr className="bg-blue-50 font-semibold">
+                <td className="sticky left-0 bg-blue-50 px-4 py-3 text-gray-700 min-w-40">
+                  Totale generale
+                </td>
+                {days.map(day => {
+                  const dayTotal = [...normalProjects, ...systemProjects].reduce((sum, p) =>
+                    sum + (entries[`${p.id}-${day}`] || 0), 0);
+                  return (
+                    <td key={day} className={`px-1 py-3 text-center text-xs min-w-10
+                      ${isWeekend(year, month, day) ? 'bg-blue-100' : ''}
+                      ${isHoliday(day) ? 'bg-orange-100' : ''}
+                    `}>
+                      {dayTotal > 0 ? <span className="text-blue-600 font-bold">{dayTotal}</span> : ''}
+                    </td>
+                  );
+                })}
+                <td className="px-4 py-3 text-center text-blue-600 font-bold">
+                  {Object.values(entries).reduce((sum, h) => sum + (h || 0), 0)}h
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
