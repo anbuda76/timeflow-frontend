@@ -336,12 +336,7 @@ export default function Timesheet() {
                   return (
                     <tr key={project.id} className="border-b hover:bg-gray-50">
                       <td className="sticky left-0 bg-white px-4 py-2 font-medium text-gray-800">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mr-1 ${
-                          project.name === 'FERIE' ? 'bg-green-100 text-green-700' :
-                          project.name === 'MALATTIA' ? 'bg-red-100 text-red-700' :
-                          project.name === 'PERMESSI' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>{project.name}</span>
+                        {project.name}
                       </td>
                       {days.map(day => {
                         const key = `${project.id}-${day}`;
@@ -378,17 +373,37 @@ export default function Timesheet() {
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr className="bg-gray-50 font-semibold">
+                  <td className="sticky left-0 bg-gray-50 px-4 py-3 text-gray-700">Totale giorno</td>
+                  {days.map(day => {
+                    const dayTotal = systemProjects.reduce((sum, p) =>
+                      sum + (entries[`${p.id}-${day}`] || 0), 0);
+                    return (
+                      <td key={day} className={`px-1 py-3 text-center text-xs
+                        ${isWeekend(year, month, day) ? 'bg-gray-100' : ''}
+                        ${isHoliday(day) ? 'bg-orange-100' : ''}
+                      `}>
+                        {dayTotal > 0 ? <span className="text-blue-600">{dayTotal}</span> : ''}
+                      </td>
+                    );
+                  })}
+                  <td className="px-4 py-3 text-center text-blue-600">
+                    {systemProjects.reduce((sum, p) =>
+                      sum + days.reduce((s, d) => s + (entries[`${p.id}-${d}`] || 0), 0), 0)}h
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
 
-        {timesheet?.rejection_note && (
-          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4">
-            <p className="text-red-700 font-medium">Motivo rifiuto:</p>
-            <p className="text-red-600">{timesheet.rejection_note}</p>
-          </div>
-        )}
-      </div>
-    </div>
+        {/* Totale generale */}
+        <div className="mt-4 bg-blue-50 rounded-xl p-4 flex justify-between items-center">
+          <span className="font-semibold text-gray-700">Totale generale (Progetti + Assenze)</span>
+          <span className="text-2xl font-bold text-blue-600">
+            {Object.values(entries).reduce((sum, h) => sum + (h || 0), 0)}h
+          </span>
+        </div>
   );
 }
