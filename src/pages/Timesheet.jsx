@@ -296,14 +296,17 @@ export default function Timesheet() {
                       </td>
                     );
                   })}
-                  <td className="px-4 py-3 text-center text-blue-600">{totalHours}h</td>
+                  <td className="px-4 py-3 text-center text-blue-600">
+                    {normalProjects.reduce((sum, p) =>
+                      sum + days.reduce((s, d) => s + (entries[`${p.id}-${d}`] || 0), 0), 0)}h
+                  </td>
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
 
-{/* Sezione progetti di sistema */}
+        {/* Sezione progetti di sistema */}
         {systemProjects.length > 0 && (
           <div className="mt-6 bg-white rounded-xl shadow-sm overflow-x-auto">
             <div className="px-4 py-3 border-b bg-gray-50">
@@ -375,7 +378,7 @@ export default function Timesheet() {
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50 font-semibold">
-                  <td className="sticky left-0 bg-gray-50 px-4 py-3 text-gray-700">Totale giorno</td>
+                  <td className="sticky left-0 bg-gray-50 px-4 py-3 text-gray-700">Totale assenze</td>
                   {days.map(day => {
                     const dayTotal = systemProjects.reduce((sum, p) =>
                       sum + (entries[`${p.id}-${day}`] || 0), 0);
@@ -393,38 +396,35 @@ export default function Timesheet() {
                       sum + days.reduce((s, d) => s + (entries[`${p.id}-${d}`] || 0), 0), 0)}h
                   </td>
                 </tr>
+                <tr className="bg-blue-50 font-bold border-t-2 border-blue-200">
+                  <td className="sticky left-0 bg-blue-50 px-4 py-3 text-blue-700">Totale generale</td>
+                  {days.map(day => {
+                    const dayTotal = [...normalProjects, ...systemProjects].reduce((sum, p) =>
+                      sum + (entries[`${p.id}-${day}`] || 0), 0);
+                    return (
+                      <td key={day} className={`px-1 py-3 text-center text-xs
+                        ${isWeekend(year, month, day) ? 'bg-blue-100' : ''}
+                        ${isHoliday(day) ? 'bg-orange-100' : ''}
+                      `}>
+                        {dayTotal > 0 ? <span className="text-blue-700 font-bold">{dayTotal}</span> : ''}
+                      </td>
+                    );
+                  })}
+                  <td className="px-4 py-3 text-center text-blue-700 font-bold">
+                    {totalHours}h
+                  </td>
+                </tr>
               </tfoot>
             </table>
           </div>
         )}
 
-        {/* Totale generale per giorno */}
-        <div className="mt-4 bg-white rounded-xl shadow-sm overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <tbody>
-              <tr className="bg-blue-50 font-semibold">
-                <td className="sticky left-0 bg-blue-50 px-4 py-3 text-gray-700 min-w-40">
-                  Totale generale
-                </td>
-                {days.map(day => {
-                  const dayTotal = [...normalProjects, ...systemProjects].reduce((sum, p) =>
-                    sum + (entries[`${p.id}-${day}`] || 0), 0);
-                  return (
-                    <td key={day} className={`px-1 py-3 text-center text-xs min-w-10
-                      ${isWeekend(year, month, day) ? 'bg-blue-100' : ''}
-                      ${isHoliday(day) ? 'bg-orange-100' : ''}
-                    `}>
-                      {dayTotal > 0 ? <span className="text-blue-600 font-bold">{dayTotal}</span> : ''}
-                    </td>
-                  );
-                })}
-                <td className="px-4 py-3 text-center text-blue-600 font-bold">
-                  {Object.values(entries).reduce((sum, h) => sum + (h || 0), 0)}h
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {timesheet?.rejection_note && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-red-700 font-medium">Motivo rifiuto:</p>
+            <p className="text-red-600">{timesheet.rejection_note}</p>
+          </div>
+        )}
       </div>
     </div>
   );
