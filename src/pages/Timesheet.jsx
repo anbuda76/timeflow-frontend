@@ -404,6 +404,8 @@ export default function Timesheet() {
           <span className="text-2xl font-bold text-blue-600">
             {Object.values(entries).reduce((sum, h) => sum + (h || 0), 0)}h
           </span>
-        </div>
+	</div>
+      </div>
+    </div>
   );
 }
