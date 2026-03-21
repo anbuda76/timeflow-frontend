@@ -3,7 +3,7 @@ import { getProjects, createProject, updateProject, assignUser, unassignUser } f
 import { getUsers } from '../api/users';
 import AppHeader from '../components/AppHeader';
 
-const emptyForm = { name: '', client_name: '', budget_hours: '' };
+const emptyForm = { name: '', client_name: '', budget_hours: '', budget_amount: '', start_date: '', end_date: '' };
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -36,12 +36,15 @@ export default function Projects() {
     setShowModal(true);
   };
 
-  const openEdit = (project) => {
+ const openEdit = (project) => {
     setEditProject(project);
     setForm({
       name: project.name,
       client_name: project.client_name || '',
       budget_hours: project.budget_hours || '',
+      budget_amount: project.budget_amount || '',
+      start_date: project.start_date || '',
+      end_date: project.end_date || '',
     });
     setError('');
     setShowModal(true);
@@ -60,6 +63,9 @@ export default function Projects() {
         name: form.name,
         client_name: form.client_name || null,
         budget_hours: form.budget_hours ? parseFloat(form.budget_hours) : null,
+        budget_amount: form.budget_amount ? parseFloat(form.budget_amount) : null,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
       };
       if (editProject) {
         const updated = await updateProject(editProject.id, data);
@@ -195,10 +201,27 @@ export default function Projects() {
                       />
                     </div>
                     <p className={`text-xs mt-1 ${isOver ? 'text-red-500' : 'text-gray-400'}`}>
-                      {percent}% del budget utilizzato
+                      {percent}% del budget ore utilizzato
                     </p>
                   </div>
                 )}
+                <div className="flex flex-wrap gap-2 mt-2 mb-3">
+                  {project.budget_amount && (
+                    <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">
+                      💶 €{project.budget_amount.toLocaleString('it-IT')}
+                    </span>
+                  )}
+                  {project.start_date && (
+                    <span className="text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded-full">
+                      📅 {new Date(project.start_date).toLocaleDateString('it-IT')}
+                    </span>
+                  )}
+                  {project.end_date && (
+                    <span className="text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded-full">
+                      🏁 {new Date(project.end_date).toLocaleDateString('it-IT')}
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex gap-2 mt-4">
                   <button
@@ -260,16 +283,50 @@ export default function Projects() {
                   placeholder="es. Acme SRL"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Budget ore</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.budget_hours}
-                  onChange={e => setForm(f => ({ ...f, budget_hours: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="es. 160"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Budget ore</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.budget_hours}
+                    onChange={e => setForm(f => ({ ...f, budget_hours: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="es. 160"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Budget €</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.budget_amount}
+                    onChange={e => setForm(f => ({ ...f, budget_amount: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="es. 5000"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Data inizio</label>
+                  <input
+                    type="date"
+                    value={form.start_date}
+                    onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Data fine</label>
+                  <input
+                    type="date"
+                    value={form.end_date}
+                    onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             </div>
             {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
