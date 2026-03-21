@@ -2,11 +2,30 @@ import { useState, useEffect } from 'react';
 import { getCostReport } from '../api/reports';
 import { getProjects } from '../api/projects';
 import AppHeader from '../components/AppHeader';
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
 const MONTHS = [
   'Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
   'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'
 ];
+
+const formatCurrency = (val) =>
+  val != null ? `€${parseFloat(val).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+
+const DeltaBadge = ({ value, pct }) => {
+  if (value == null) return <span className="text-gray-400">—</span>;
+  const positive = value > 0;
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+      positive ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+    }`}>
+      {positive ? '+' : ''}{value} {pct != null ? `(${positive ? '+' : ''}${pct}%)` : ''}
+    </span>
+  );
+};
 
 export default function Reports() {
   const today = new Date();
@@ -18,7 +37,7 @@ export default function Reports() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    getProjects().then(setProjects);
+    getProjects().then(data => setProjects(data.filter(p => !p.is_system)));
   }, []);
 
   const loadReport = async () => {
@@ -36,14 +55,32 @@ export default function Reports() {
     }
   };
 
-  const formatCurrency = (val) =>
-    val != null ? `€${parseFloat(val).toFixed(2)}` : '—';
+  // Dati per istogramma ore
+  const barDataHours = report?.projects?.map(p => ({
+    name: p.project_name,
+    'Consuntivo h': p.consuntivo_hours,
+    'Budget h': p.budget_hours || 0,
+  })) || [];
+
+  // Dati per istogramma €
+  const barDataAmount = report?.projects?.map(p => ({
+    name: p.project_name,
+    'Consuntivo €': p.consuntivo_amount,
+    'Budget €': p.budget_amount || 0,
+  })) || [];
+
+  // Dati per grafico lineare cumulato (per mese se anno intero)
+  const lineData = report?.projects?.map(p => ({
+    name: p.project_name,
+    cumulato: p.consuntivo_amount,
+    target: p.budget_amount || 0,
+  })) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader />
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         <h1 className="text-xl font-bold text-gray-800 mb-4">📊 Report Costi</h1>
 
         {/* Filtri */}
@@ -60,7 +97,6 @@ export default function Reports() {
               ))}
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Mese (opzionale)</label>
             <select
@@ -74,7 +110,6 @@ export default function Reports() {
               ))}
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Progetto (opzionale)</label>
             <select
@@ -88,7 +123,6 @@ export default function Reports() {
               ))}
             </select>
           </div>
-
           <button
             onClick={loadReport}
             disabled={loading}
@@ -98,7 +132,6 @@ export default function Reports() {
           </button>
         </div>
 
-        {/* Placeholder */}
         {!report && !loading && (
           <div className="bg-white rounded-xl p-12 text-center text-gray-400">
             Seleziona i filtri e clicca "Genera Report"
@@ -127,69 +160,60 @@ export default function Reports() {
               </div>
             </div>
 
-            {/* Per progetto */}
+            {/* Tabella per progetto */}
             {report.projects && report.projects.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm mb-6 overflow-x-auto">
                 <div className="px-4 py-3 border-b">
-                  <h2 className="font-semibold text-gray-800">Costi per Progetto</h2>
+                  <h2 className="font-semibold text-gray-800">Analisi per Progetto</h2>
                 </div>
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">Progetto</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Ore</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Costo</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">% Budget</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Consuntivo €</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget h</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Consuntivo h</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta h</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {report.projects.map(p => {
-                      const percent = p.budget_hours
-                        ? Math.round((p.hours / p.budget_hours) * 100)
-                        : null;
-                      return (
-                        <tr key={p.project_id} className="border-b hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
-                          <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
-                          <td className="px-4 py-3 text-right text-blue-600 font-medium">{p.hours}h</td>
-                          <td className="px-4 py-3 text-right font-medium text-green-600">{formatCurrency(p.cost)}</td>
-                          <td className="px-4 py-3 text-right text-gray-500">
-                            {p.budget_hours ? `${p.budget_hours}h` : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            {percent != null ? (
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                percent >= 90 ? 'bg-red-100 text-red-600' :
-                                percent >= 70 ? 'bg-yellow-100 text-yellow-600' :
-                                'bg-green-100 text-green-600'
-                              }`}>
-                                {percent}%
-                              </span>
-                            ) : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {report.projects.map(p => (
+                      <tr key={p.project_id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
+                        <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
+                        <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
+                        <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <DeltaBadge value={p.delta_amount} pct={p.delta_amount_pct} />
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-600">{p.budget_hours ? `${p.budget_hours}h` : '—'}</td>
+                        <td className="px-4 py-3 text-right font-medium text-blue-600">{p.consuntivo_hours}h</td>
+                        <td className="px-4 py-3 text-right">
+                          <DeltaBadge value={p.delta_hours} pct={p.delta_hours_pct} />
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             )}
 
-            {/* Per utente */}
+            {/* Tabella per utente */}
             {report.users && report.users.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
                 <div className="px-4 py-3 border-b">
-                  <h2 className="font-semibold text-gray-800">Costi per Utente</h2>
+                  <h2 className="font-semibold text-gray-800">Analisi per Utente</h2>
                 </div>
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">Utente</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Ore totali</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Consuntivo h</th>
                       <th className="px-4 py-3 text-right font-semibold text-gray-700">Costo/h</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Costo totale</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Consuntivo €</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -207,6 +231,60 @@ export default function Reports() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Grafici */}
+            {report.projects && report.projects.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+                {/* Istogramma ore */}
+                <div className="bg-white rounded-xl shadow-sm p-4">
+                  <h2 className="font-semibold text-gray-800 mb-4">📊 Budget vs Consuntivo (ore)</h2>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={barDataHours} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-30} textAnchor="end" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Budget h" fill="#94a3b8" />
+                      <Bar dataKey="Consuntivo h" fill="#3b82f6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Istogramma € */}
+                <div className="bg-white rounded-xl shadow-sm p-4">
+                  <h2 className="font-semibold text-gray-800 mb-4">💶 Budget vs Consuntivo (€)</h2>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={barDataAmount} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-30} textAnchor="end" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(val) => `€${val.toLocaleString('it-IT')}`} />
+                      <Legend />
+                      <Bar dataKey="Budget €" fill="#94a3b8" />
+                      <Bar dataKey="Consuntivo €" fill="#10b981" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Grafico lineare cumulato vs target */}
+                <div className="bg-white rounded-xl shadow-sm p-4 lg:col-span-2">
+                  <h2 className="font-semibold text-gray-800 mb-4">📈 Costo consuntivato vs Budget per progetto</h2>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={lineData} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-30} textAnchor="end" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(val) => `€${val.toLocaleString('it-IT')}`} />
+                      <Legend />
+                      <Line type="monotone" dataKey="cumulato" stroke="#3b82f6" strokeWidth={2} dot={{ r: 5 }} name="Costo consuntivato" />
+                      <Line type="monotone" dataKey="target" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 5 }} name="Budget target" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             )}
           </>
