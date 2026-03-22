@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getCostReport, getMonthlyTrend } from '../api/reports';
 import { getProjects } from '../api/projects';
 import AppHeader from '../components/AppHeader';
+import { getCostReport, getMonthlyTrend, exportExcel } from '../api/reports';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -41,6 +42,8 @@ export default function Reports() {
   const [report, setReport] = useState(null);
   const [trend, setTrend] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [exportMonth, setExportMonth] = useState(today.getMonth() + 1);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     getProjects().then(data => setProjects(data.filter(p => !p.is_system)));
@@ -106,6 +109,55 @@ export default function Reports() {
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <h1 className="text-xl font-bold text-gray-800 mb-4">📊 Report Costi</h1>
+
+	{/* Card Export */}
+        <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+          <h2 className="font-semibold text-gray-800 mb-3">📥 Export Excel</h2>
+          <div className="flex flex-wrap gap-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Anno</label>
+              <select
+                value={year}
+                onChange={e => setYear(parseInt(e.target.value))}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {[2024, 2025, 2026, 2027].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Mese</label>
+              <select
+                value={exportMonth}
+                onChange={e => setExportMonth(parseInt(e.target.value))}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {MONTHS.map((m, i) => (
+                  <option key={i + 1} value={i + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  setExporting(true);
+                  try {
+                    await exportExcel({ year, month: exportMonth });
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+                disabled={exporting}
+                className="bg-green-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {exporting ? 'Generazione...' : '📊 Scarica Riepilogo Giornate & Progetti'}
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Tab */}
         <div className="flex gap-2 mb-6">
