@@ -263,7 +263,18 @@ export default function Timesheet() {
                   return (
                     <tr key={project.id} className="border-b hover:bg-gray-50">
                       <td className="sticky left-0 bg-white px-4 py-2 font-medium text-gray-800">
-                        {project.name}
+                        <span className="relative inline-flex items-center group">
+                          <span className="truncate max-w-64">{project.name}</span>
+                          {project.note && (
+                            <span
+                              className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-lg group-hover:block"
+                            >
+                              <span className="absolute -top-2 left-4 h-3 w-3 rotate-45 border-l border-t border-gray-200 bg-white" />
+                              <span className="font-semibold text-gray-800">Note</span>
+                              <div className="mt-1 whitespace-pre-wrap text-gray-700">{project.note}</div>
+                            </span>
+                          )}
+                        </span>
                       </td>
                       {days.map(day => {
                         const key = `${project.id}-${day}`;

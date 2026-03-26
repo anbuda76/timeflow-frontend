@@ -3,7 +3,7 @@ import { getProjects, createProject, updateProject, assignUser, unassignUser } f
 import { getUsers } from '../api/users';
 import AppHeader from '../components/AppHeader';
 
-const emptyForm = { name: '', client_name: '', budget_hours: '', budget_amount: '', start_date: '', end_date: '' };
+const emptyForm = { name: '', client_name: '', note: '', budget_hours: '', budget_amount: '', start_date: '', end_date: '' };
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -41,6 +41,7 @@ export default function Projects() {
     setForm({
       name: project.name,
       client_name: project.client_name || '',
+      note: project.note || '',
       budget_hours: project.budget_hours || '',
       budget_amount: project.budget_amount || '',
       start_date: project.start_date || '',
@@ -62,6 +63,7 @@ export default function Projects() {
       const data = {
         name: form.name,
         client_name: form.client_name || null,
+        note: form.note || null,
         budget_hours: form.budget_hours ? parseFloat(form.budget_hours) : null,
         budget_amount: form.budget_amount ? parseFloat(form.budget_amount) : null,
         start_date: form.start_date || null,
@@ -281,6 +283,16 @@ export default function Projects() {
                   onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="es. Acme SRL"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Note</label>
+                <textarea
+                  value={form.note}
+                  onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Note visibili come tooltip sul Timesheet"
+                  rows={3}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
