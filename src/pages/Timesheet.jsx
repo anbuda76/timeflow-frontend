@@ -200,7 +200,7 @@ export default function Timesheet() {
                 {saving ? 'Salvo...' : '💾 Salva'}
               </button>
             )}
-            {timesheet?.status === 'draft' && (
+            {(timesheet?.status === 'draft' || timesheet?.status === 'rejected') && (
               <button
                 onClick={handleSubmit}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
