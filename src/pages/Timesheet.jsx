@@ -3,6 +3,7 @@ import {
   getTimesheets, getTimesheet, createTimesheet,
   saveEntries, submitTimesheet, getProjects, getHolidays
 } from '../api/timesheets';
+import { getMyWeekendAuthorizations } from '../api/weekendAuth';
 import AppHeader from '../components/AppHeader';
 
 const MONTHS = [
@@ -24,12 +25,14 @@ export default function Timesheet() {
   const [timesheet, setTimesheet] = useState(null);
   const [projects, setProjects] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [weekendAuthorizations, setWeekendAuthorizations] = useState([]);
   const [entries, setEntries] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
   const holidayDates = holidays.map(h => h.holiday_date);
+  const weekendAuthDateSet = new Set(weekendAuthorizations.map(a => a.auth_date));
   const systemProjects = projects.filter(p => p.is_system);
   const normalProjects = projects.filter(p => !p.is_system);
 
@@ -38,16 +41,23 @@ export default function Timesheet() {
     return holidayDates.includes(dateStr);
   };
 
+  const isWeekendAuthorized = (day) => {
+    const dateStr = `${year}-${padDate(month)}-${padDate(day)}`;
+    return weekendAuthDateSet.has(dateStr);
+  };
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [allTimesheets, projs, hols] = await Promise.all([
+      const [allTimesheets, projs, hols, myWeekendAuth] = await Promise.all([
         getTimesheets({ year, month }),
         getProjects(),
         getHolidays(year),
+        getMyWeekendAuthorizations({ year, month }),
       ]);
       setProjects(projs);
       setHolidays(hols);
+      setWeekendAuthorizations(myWeekendAuth);
 
       if (allTimesheets.length > 0) {
         const full = await getTimesheet(allTimesheets[0].id);
@@ -74,6 +84,10 @@ export default function Timesheet() {
   const handleCellChange = (projectId, day, value) => {
     if (timesheet?.status === 'submitted' || timesheet?.status === 'approved') return;
     const hours = parseFloat(value) || 0;
+    const weekend = isWeekend(year, month, day);
+    const holiday = isHoliday(day);
+    if (holiday) return; // le festività restano sempre bloccate
+    if (weekend && !isWeekendAuthorized(day)) return; // weekend solo se autorizzato
     setEntries(prev => ({ ...prev, [`${projectId}-${day}`]: hours }));
   };
 
@@ -104,8 +118,9 @@ export default function Timesheet() {
       setTimesheet(updated);
       setMessage('✅ Salvato!');
       setTimeout(() => setMessage(''), 2000);
-    } catch {
-      setMessage('❌ Errore nel salvataggio');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setMessage(typeof detail === 'string' ? detail : '❌ Errore nel salvataggio');
     } finally {
       setSaving(false);
     }
@@ -126,7 +141,11 @@ export default function Timesheet() {
 
   const totalHours = Object.values(entries).reduce((sum, h) => sum + (h || 0), 0);
   const workingDays = Array.from({ length: getDaysInMonth(year, month) }, (_, i) => i + 1)
-    .filter(d => !isWeekend(year, month, d) && !isHoliday(d)).length;
+    .filter(d => {
+      if (isHoliday(d)) return false;
+      if (isWeekend(year, month, d)) return isWeekendAuthorized(d);
+      return true;
+    }).length;
   const expectedHours = workingDays * 8;
   const days = Array.from({ length: getDaysInMonth(year, month) }, (_, i) => i + 1);
 
@@ -251,12 +270,13 @@ export default function Timesheet() {
                         const val = entries[key] || '';
                         const weekend = isWeekend(year, month, day);
                         const holiday = isHoliday(day);
+                        const canShowValue = !holiday && (!weekend || isWeekendAuthorized(day));
                         return (
                           <td key={day} className={`px-1 py-1 text-center
                             ${weekend ? 'bg-gray-50' : ''}
                             ${holiday ? 'bg-orange-50' : ''}
                           `}>
-                            {!weekend && !holiday && canEdit ? (
+                            {canShowValue && canEdit ? (
                               <input
                                 type="number"
                                 min="0"
@@ -268,7 +288,7 @@ export default function Timesheet() {
                               />
                             ) : (
                               <span className="text-gray-400 text-xs">
-                                {weekend || holiday ? '—' : val || ''}
+                                {canShowValue ? (val || '') : '—'}
                               </span>
                             )}
                           </td>
@@ -346,12 +366,13 @@ export default function Timesheet() {
                         const val = entries[key] || '';
                         const weekend = isWeekend(year, month, day);
                         const holiday = isHoliday(day);
+                        const canShowValue = !holiday && (!weekend || isWeekendAuthorized(day));
                         return (
                           <td key={day} className={`px-1 py-1 text-center
                             ${weekend ? 'bg-gray-50' : ''}
                             ${holiday ? 'bg-orange-50' : ''}
                           `}>
-                            {!weekend && !holiday && canEdit ? (
+                            {canShowValue && canEdit ? (
                               <input
                                 type="number"
                                 min="0"
@@ -363,7 +384,7 @@ export default function Timesheet() {
                               />
                             ) : (
                               <span className="text-gray-400 text-xs">
-                                {weekend || holiday ? '—' : val || ''}
+                                {canShowValue ? (val || '') : '—'}
                               </span>
                             )}
                           </td>

@@ -12,6 +12,7 @@ export default function Dashboard() {
       { label: '👥 Utenti', path: '/users' },
       { label: '📁 Progetti', path: '/projects' },
       { label: '📊 Report Costi', path: '/reports' },
+      { label: '🗓 Weekend autorizzazioni', path: '/weekend-authorizations' },
     ],
     admin: [
       { label: '👥 Utenti', path: '/users' },
@@ -19,6 +20,7 @@ export default function Dashboard() {
       { label: '✅ Approvazioni', path: '/approvals' },
       { label: '📊 Report Costi', path: '/reports' },
       { label: '📅 Calendario', path: '/calendar' },
+      { label: '🗓 Weekend autorizzazioni', path: '/weekend-authorizations' },
       { label: '⚙️ Impostazioni', path: '/settings' },
     ],
     manager: [
