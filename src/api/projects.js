@@ -14,3 +14,6 @@ export const assignUser = (projectId, userId) =>
 
 export const unassignUser = (projectId, userId) =>
   api.delete(`/projects/${projectId}/assign/${userId}`).then(r => r.data);
+
+export const deleteProject = (id) =>
+  api.delete(`/projects/${id}`).then(r => r.data);

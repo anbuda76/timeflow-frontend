@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUsers, createUser, updateUser } from '../api/users';
+import { getUsers, createUser, updateUser, deleteUser } from '../api/users';
 import AppHeader from '../components/AppHeader';
 
 const ROLES = ['employee', 'manager', 'admin'];
@@ -100,6 +100,18 @@ export default function Users() {
       setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
     } catch {
       alert('Errore nell\'aggiornamento');
+    }
+  };
+
+  const handleDelete = async (user) => {
+    if (!window.confirm(`Sei sicuro di voler eliminare l'utente ${user.first_name} ${user.last_name}?`)) return;
+    try {
+      await deleteUser(user.id);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      alert('Utente eliminato');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      alert(typeof detail === 'string' ? detail : 'Errore durante l\'eliminazione');
     }
   };
 
@@ -207,6 +219,12 @@ export default function Users() {
                       }`}
                     >
                       {user.is_active ? 'Disattiva' : 'Attiva'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(user)}
+                      className="text-red-600 hover:text-red-800 text-xs font-medium ml-2"
+                    >
+                      Elimina
                     </button>
                   </td>
                 </tr>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getProjects, createProject, updateProject, assignUser, unassignUser } from '../api/projects';
+import { getProjects, createProject, updateProject, assignUser, unassignUser, deleteProject } from '../api/projects';
 import { getUsers } from '../api/users';
 import AppHeader from '../components/AppHeader';
 
@@ -91,6 +91,18 @@ export default function Projects() {
       setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
     } catch {
       alert('Errore nell\'aggiornamento');
+    }
+  };
+
+  const handleDelete = async (project) => {
+    if (!window.confirm(`Sei sicuro di voler eliminare il progetto ${project.name}?`)) return;
+    try {
+      await deleteProject(project.id);
+      setProjects(prev => prev.filter(p => p.id !== project.id));
+      alert('Progetto eliminato');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      alert(typeof detail === 'string' ? detail : 'Errore durante l\'eliminazione');
     }
   };
 
@@ -240,11 +252,19 @@ export default function Projects() {
                   </button>
                   <button
                     onClick={() => handleToggleActive(project)}
-                    className={`text-sm px-3 py-1.5 rounded-lg ${
-                      project.is_active ? 'text-red-500 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'
+                    className={`text-sm flex-none px-3 py-1.5 rounded-lg border ${
+                      project.is_active ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'
                     }`}
+                    title={project.is_active ? 'Disattiva' : 'Attiva'}
                   >
                     {project.is_active ? '🔒' : '🔓'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(project)}
+                    className="text-sm flex-none px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                    title="Elimina"
+                  >
+                    🗑️
                   </button>
                 </div>
               </div>

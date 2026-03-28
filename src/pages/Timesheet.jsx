@@ -7,8 +7,8 @@ import { getMyWeekendAuthorizations } from '../api/weekendAuth';
 import AppHeader from '../components/AppHeader';
 
 const MONTHS = [
-  'Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
-  'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'
+  'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
 ];
 
 const getDaysInMonth = (year, month) => new Date(year, month, 0).getDate();
@@ -238,9 +238,12 @@ export default function Timesheet() {
           <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b">
-                  <th className="sticky left-0 bg-white px-4 py-3 text-left font-semibold text-gray-700 min-w-40">
-                    Progetto
+                <tr className="border-b-2 border-red-500">
+                  <th className="sticky left-0 z-20 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-40 min-w-[10rem] max-w-[10rem]">
+                    Cliente / Sistema
+                  </th>
+                  <th className="sticky left-40 z-20 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
+                    Progetto / Voce
                   </th>
                   {days.map(day => (
                     <th key={day} className={`px-1 py-3 text-center font-medium min-w-10
@@ -249,187 +252,198 @@ export default function Timesheet() {
                     `}>
                       <div>{day}</div>
                       <div className="text-xs text-gray-400">
-                        {['D','L','M','M','G','V','S'][new Date(year, month-1, day).getDay()]}
+                        {['D', 'L', 'M', 'M', 'G', 'V', 'S'][new Date(year, month - 1, day).getDay()]}
                       </div>
                     </th>
                   ))}
                   <th className="px-4 py-3 text-center font-semibold text-gray-700">Tot</th>
                 </tr>
               </thead>
-              <tbody>
-                {normalProjects.map(project => {
-                  const projectTotal = days.reduce((sum, day) =>
-                    sum + (entries[`${project.id}-${day}`] || 0), 0);
-                  return (
-                    <tr key={project.id} className="border-b hover:bg-gray-50">
-                      <td className="sticky left-0 bg-white px-4 py-2 font-medium text-gray-800">
-                        <span className="relative inline-flex items-center group">
-                          <span className="truncate max-w-64">{project.name}</span>
-                          {project.note && (
-                            <span
-                              className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-lg group-hover:block"
-                            >
-                              <span className="absolute -top-2 left-4 h-3 w-3 rotate-45 border-l border-t border-gray-200 bg-white" />
-                              <span className="font-semibold text-gray-800">Note</span>
-                              <div className="mt-1 whitespace-pre-wrap text-gray-700">{project.note}</div>
+              
+              {/* Progetti Lavorativi */}
+              {normalProjects.length > 0 && (
+                <tbody>
+                  {normalProjects.map(project => {
+                    const projectTotal = days.reduce((sum, day) =>
+                      sum + (entries[`${project.id}-${day}`] || 0), 0);
+                    return (
+                      <tr key={project.id} className="border-b hover:bg-gray-50">
+                        <td className="sticky left-0 z-10 bg-white px-4 py-2 font-medium text-gray-600 w-40 min-w-[10rem] max-w-[10rem] truncate" title={project.client_name}>
+                          {project.client_name ? (project.client_name.length > 25 ? project.client_name.substring(0, 25) + '...' : project.client_name) : '—'}
+                        </td>
+                        <td className="sticky left-40 bg-white px-4 py-2 font-medium text-gray-800 z-10 hover:z-50 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
+                          <span className="relative inline-flex items-center group w-full">
+                            <span className="truncate w-full block" title={project.name}>
+                              {project.name.length > 50 ? project.name.substring(0, 50) + '...' : project.name}
                             </span>
-                          )}
-                        </span>
-                      </td>
-                      {days.map(day => {
-                        const key = `${project.id}-${day}`;
-                        const val = entries[key] || '';
-                        const weekend = isWeekend(year, month, day);
-                        const holiday = isHoliday(day);
-                        const canShowValue = !holiday && (!weekend || isWeekendAuthorized(day));
-                        return (
-                          <td key={day} className={`px-1 py-1 text-center
-                            ${weekend ? 'bg-gray-50' : ''}
-                            ${holiday ? 'bg-orange-50' : ''}
-                          `}>
-                            {canShowValue && canEdit ? (
-                              <input
-                                type="number"
-                                min="0"
-                                max="24"
-                                step="0.5"
-                                value={val}
-                                onChange={(e) => handleCellChange(project.id, day, e.target.value)}
-                                className="w-10 text-center border border-gray-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-blue-400"
-                              />
-                            ) : (
-                              <span className="text-gray-400 text-xs">
-                                {canShowValue ? (val || '') : '—'}
+                            {project.note && (
+                              <span
+                                className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-lg group-hover:block"
+                              >
+                                <span className="absolute -top-2 left-4 h-3 w-3 rotate-45 border-l border-t border-gray-200 bg-white" />
+                                <span className="font-semibold text-gray-800">Note</span>
+                                <div className="mt-1 whitespace-pre-wrap text-gray-700">{project.note}</div>
                               </span>
                             )}
-                          </td>
-                        );
-                      })}
-                      <td className="px-4 py-2 text-center font-semibold text-blue-600">
-                        {projectTotal > 0 ? `${projectTotal}h` : '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="bg-gray-50 font-semibold">
-                  <td className="sticky left-0 bg-gray-50 px-4 py-3 text-gray-700">Totale giorno</td>
-                  {days.map(day => {
-                    const dayTotal = normalProjects.reduce((sum, p) =>
-                      sum + (entries[`${p.id}-${day}`] || 0), 0);
-                    return (
-                      <td key={day} className={`px-1 py-3 text-center text-xs
-                        ${isWeekend(year, month, day) ? 'bg-gray-100' : ''}
-                        ${isHoliday(day) ? 'bg-orange-100' : ''}
-                      `}>
-                        {dayTotal > 0 ? <span className="text-blue-600">{dayTotal}</span> : ''}
-                      </td>
+                          </span>
+                        </td>
+                        {days.map(day => {
+                          const key = `${project.id}-${day}`;
+                          const val = entries[key] || '';
+                          const weekend = isWeekend(year, month, day);
+                          const holiday = isHoliday(day);
+                          const canShowValue = !holiday && (!weekend || isWeekendAuthorized(day));
+                          return (
+                            <td key={day} className={`px-1 py-1 text-center
+                              ${weekend ? 'bg-gray-50' : ''}
+                              ${holiday ? 'bg-orange-50' : ''}
+                            `}>
+                              {canShowValue && canEdit ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="24"
+                                  step="0.5"
+                                  value={val}
+                                  onChange={(e) => handleCellChange(project.id, day, e.target.value)}
+                                  className="w-10 text-center border border-gray-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-blue-400"
+                                />
+                              ) : (
+                                <span className="text-gray-400 text-xs">
+                                  {canShowValue ? (val || '') : '—'}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="px-4 py-2 text-center font-semibold text-blue-600">
+                          {projectTotal > 0 ? `${projectTotal}h` : '—'}
+                        </td>
+                      </tr>
                     );
                   })}
-                  <td className="px-4 py-3 text-center text-blue-600">
-                    {normalProjects.reduce((sum, p) =>
-                      sum + days.reduce((s, d) => s + (entries[`${p.id}-${d}`] || 0), 0), 0)}h
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+                </tbody>
+              )}
 
-        {/* Sezione progetti di sistema */}
-        {systemProjects.length > 0 && (
-          <div className="mt-6 bg-white rounded-xl shadow-sm overflow-x-auto">
-            <div className="px-4 py-3 border-b bg-gray-50">
-              <h3 className="font-semibold text-gray-700">📋 Assenze & Straordinari</h3>
-            </div>
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="sticky left-0 bg-white px-4 py-3 text-left font-semibold text-gray-700 min-w-40">
-                    Voce
-                  </th>
-                  {days.map(day => (
-                    <th key={day} className={`px-1 py-3 text-center font-medium min-w-10
-                      ${isWeekend(year, month, day) ? 'bg-gray-50 text-gray-400' : ''}
-                      ${isHoliday(day) ? 'bg-orange-50 text-orange-400' : ''}
-                    `}>
-                      <div>{day}</div>
-                      <div className="text-xs text-gray-400">
-                        {['D','L','M','M','G','V','S'][new Date(year, month-1, day).getDay()]}
-                      </div>
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Tot</th>
-                </tr>
-              </thead>
-              <tbody>
-                {systemProjects.map(project => {
-                  const projectTotal = days.reduce((sum, day) =>
-                    sum + (entries[`${project.id}-${day}`] || 0), 0);
-                  return (
-                    <tr key={project.id} className="border-b hover:bg-gray-50">
-                      <td className="sticky left-0 bg-white px-4 py-2 font-medium text-gray-800">
-                        {project.name}
+              {/* Voci di Sistema (Assenze & Straordinari) */}
+              {systemProjects.length > 0 && (
+                <>
+                  <tbody>
+                    <tr className="bg-gray-100">
+                      <td className="sticky left-0 z-10 bg-gray-100 px-4 py-2 font-semibold text-gray-700 w-40 min-w-[10rem] max-w-[10rem]"></td>
+                      <td className="sticky left-40 z-10 bg-gray-100 px-4 py-2 font-semibold text-gray-700 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
                       </td>
-                      {days.map(day => {
-                        const key = `${project.id}-${day}`;
-                        const val = entries[key] || '';
-                        const weekend = isWeekend(year, month, day);
-                        const holiday = isHoliday(day);
-                        const canShowValue = !holiday && (!weekend || isWeekendAuthorized(day));
-                        return (
-                          <td key={day} className={`px-1 py-1 text-center
-                            ${weekend ? 'bg-gray-50' : ''}
-                            ${holiday ? 'bg-orange-50' : ''}
-                          `}>
-                            {canShowValue && canEdit ? (
-                              <input
-                                type="number"
-                                min="0"
-                                max="24"
-                                step="0.5"
-                                value={val}
-                                onChange={(e) => handleCellChange(project.id, day, e.target.value)}
-                                className="w-10 text-center border border-gray-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-blue-400"
-                              />
-                            ) : (
-                              <span className="text-gray-400 text-xs">
-                                {canShowValue ? (val || '') : '—'}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td className="px-4 py-2 text-center font-semibold text-blue-600">
-                        {projectTotal > 0 ? `${projectTotal}h` : '—'}
-                      </td>
+                      <td colSpan={days.length + 1} className="bg-gray-100"></td>
                     </tr>
-                  );
-                })}
-              </tbody>
+                  </tbody>
+                  <tbody>
+                    {systemProjects.map(project => {
+                      const projectTotal = days.reduce((sum, day) =>
+                        sum + (entries[`${project.id}-${day}`] || 0), 0);
+                      return (
+                        <tr key={project.id} className="border-b hover:bg-gray-50">
+                          <td className="sticky left-0 z-10 bg-white px-4 py-2 font-medium text-gray-400 w-40 min-w-[10rem] max-w-[10rem] text-left">
+                            Sistema
+                          </td>
+                          <td className="sticky left-40 z-10 bg-white px-4 py-2 font-medium text-gray-800 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200 truncate" title={project.name}>
+                            {(() => {
+                              const formatted = project.name.charAt(0).toUpperCase() + project.name.slice(1).toLowerCase();
+                              return formatted.length > 50 ? formatted.substring(0, 50) + '...' : formatted;
+                            })()}
+                          </td>
+                          {days.map(day => {
+                            const key = `${project.id}-${day}`;
+                            const val = entries[key] || '';
+                            const weekend = isWeekend(year, month, day);
+                            const holiday = isHoliday(day);
+                            const canShowValue = !holiday && (!weekend || isWeekendAuthorized(day));
+                            return (
+                              <td key={day} className={`px-1 py-1 text-center
+                                ${weekend ? 'bg-gray-50' : ''}
+                                ${holiday ? 'bg-orange-50' : ''}
+                              `}>
+                                {canShowValue && canEdit ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="24"
+                                    step="0.5"
+                                    value={val}
+                                    onChange={(e) => handleCellChange(project.id, day, e.target.value)}
+                                    className="w-10 text-center border border-gray-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-blue-400"
+                                  />
+                                ) : (
+                                  <span className="text-gray-400 text-xs">
+                                    {canShowValue ? (val || '') : '—'}
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td className="px-4 py-2 text-center font-semibold text-blue-600">
+                            {projectTotal > 0 ? `${projectTotal}h` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </>
+              )}
+
+              {/* Totali */}
               <tfoot>
-                <tr className="bg-gray-50 font-semibold">
-                  <td className="sticky left-0 bg-gray-50 px-4 py-3 text-gray-700">Totale assenze</td>
-                  {days.map(day => {
-                    const dayTotal = systemProjects.reduce((sum, p) =>
-                      sum + (entries[`${p.id}-${day}`] || 0), 0);
-                    return (
-                      <td key={day} className={`px-1 py-3 text-center text-xs
-                        ${isWeekend(year, month, day) ? 'bg-gray-100' : ''}
-                        ${isHoliday(day) ? 'bg-orange-100' : ''}
-                      `}>
-                        {dayTotal > 0 ? <span className="text-blue-600">{dayTotal}</span> : ''}
-                      </td>
-                    );
-                  })}
-                  <td className="px-4 py-3 text-center text-blue-600">
-                    {systemProjects.reduce((sum, p) =>
-                      sum + days.reduce((s, d) => s + (entries[`${p.id}-${d}`] || 0), 0), 0)}h
-                  </td>
-                </tr>
+                {/* Lavorato */}
+                {normalProjects.length > 0 && (
+                  <tr className="bg-gray-50 font-semibold border-t-[3px] border-gray-300">
+                    <td className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-gray-700 w-40 min-w-[10rem] max-w-[10rem]"></td>
+                    <td className="sticky left-40 z-10 bg-gray-50 px-4 py-3 text-gray-800 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200 text-right">Totale progetti</td>
+                    {days.map(day => {
+                      const dayTotal = normalProjects.reduce((sum, p) =>
+                        sum + (entries[`${p.id}-${day}`] || 0), 0);
+                      return (
+                        <td key={day} className={`px-1 py-3 text-center text-xs
+                          ${isWeekend(year, month, day) ? 'bg-gray-100' : ''}
+                          ${isHoliday(day) ? 'bg-orange-100' : ''}
+                        `}>
+                          {dayTotal > 0 ? <span className="text-gray-600">{dayTotal}</span> : ''}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-center text-gray-600">
+                      {normalProjects.reduce((sum, p) =>
+                        sum + days.reduce((s, d) => s + (entries[`${p.id}-${d}`] || 0), 0), 0)}h
+                    </td>
+                  </tr>
+                )}
+
+                {/* Assenze */}
+                {systemProjects.length > 0 && (
+                  <tr className={`bg-gray-50 font-semibold ${normalProjects.length === 0 ? 'border-t-[3px] border-gray-300' : 'border-t border-gray-200'}`}>
+                    <td className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-gray-700 w-40 min-w-[10rem] max-w-[10rem]"></td>
+                    <td className="sticky left-40 z-10 bg-gray-50 px-4 py-3 text-gray-800 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200 text-right">Totale assenze</td>
+                    {days.map(day => {
+                      const dayTotal = systemProjects.reduce((sum, p) =>
+                        sum + (entries[`${p.id}-${day}`] || 0), 0);
+                      return (
+                        <td key={day} className={`px-1 py-3 text-center text-xs
+                          ${isWeekend(year, month, day) ? 'bg-gray-100' : ''}
+                          ${isHoliday(day) ? 'bg-orange-100' : ''}
+                        `}>
+                          {dayTotal > 0 ? <span className="text-gray-600">{dayTotal}</span> : ''}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-center text-gray-600">
+                      {systemProjects.reduce((sum, p) =>
+                        sum + days.reduce((s, d) => s + (entries[`${p.id}-${d}`] || 0), 0), 0)}h
+                    </td>
+                  </tr>
+                )}
+
+                {/* Totale Generale */}
                 <tr className="bg-blue-50 font-bold border-t-2 border-blue-200">
-                  <td className="sticky left-0 bg-blue-50 px-4 py-3 text-blue-700">Totale generale</td>
+                  <td className="sticky left-0 z-10 bg-blue-50 px-4 py-3 text-blue-700 w-40 min-w-[10rem] max-w-[10rem]"></td>
+                  <td className="sticky left-40 z-10 bg-blue-50 px-4 py-3 text-blue-800 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200 text-right">Totale generale</td>
                   {days.map(day => {
                     const dayTotal = [...normalProjects, ...systemProjects].reduce((sum, p) =>
                       sum + (entries[`${p.id}-${day}`] || 0), 0);
