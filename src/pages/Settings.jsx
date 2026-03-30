@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getMyOrganization, updateMyOrganization } from '../api/register';
+import { changePassword } from '../api/auth';
 import { useBrand } from '../context/BrandContext';
 import AppHeader from '../components/AppHeader';
 
@@ -19,8 +20,15 @@ export default function Settings() {
     primary_color: '#1d4ed8',
     logo_url: '',
   });
-const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadError, setUploadError] = useState('');
+
+  // Password change state
+  const [passForm, setPassForm] = useState({ current: '', new: '', confirm: '' });
+  const [passLoading, setPassLoading] = useState(false);
+  const [passMessage, setPassMessage] = useState('');
+  const [passError, setPassError] = useState('');
+  const [showPass, setShowPass] = useState(false);
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
@@ -81,6 +89,33 @@ const [uploadingLogo, setUploadingLogo] = useState(false);
       setMessage('❌ Errore nel salvataggio');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPassError('');
+    setPassMessage('');
+
+    if (passForm.new !== passForm.confirm) {
+      setPassError('Le password non coincidono');
+      return;
+    }
+    if (passForm.new.length < 8) {
+      setPassError('La nuova password deve avere almeno 8 caratteri');
+      return;
+    }
+
+    setPassLoading(true);
+    try {
+      await changePassword(passForm.current, passForm.new);
+      setPassMessage('✅ Password aggiornata con successo!');
+      setPassForm({ current: '', new: '', confirm: '' });
+      setTimeout(() => setPassMessage(''), 3000);
+    } catch (err) {
+      setPassError(err.response?.data?.detail || "Errore durante l'aggiornamento della password");
+    } finally {
+      setPassLoading(false);
     }
   };
 
@@ -223,6 +258,88 @@ const [uploadingLogo, setUploadingLogo] = useState(false);
           >
             {saving ? 'Salvataggio...' : '💾 Salva impostazioni'}
           </button>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-6 mt-8 space-y-6">
+          <h2 className="text-lg font-bold text-gray-800">🔒 Sicurezza</h2>
+          
+          {passMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm">
+              {passMessage}
+            </div>
+          )}
+          
+          {passError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+              {passError}
+            </div>
+          )}
+
+          <form onSubmit={handlePasswordChange} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password attuale</label>
+              <div className="relative">
+                <input
+                  type={showPass ? "text" : "password"}
+                  value={passForm.current}
+                  onChange={e => setPassForm(f => ({ ...f, current: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-blue-500 transition"
+                  onClick={() => setShowPass(!showPass)}
+                >
+                  {showPass ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nuova password</label>
+              <input
+                type={showPass ? "text" : "password"}
+                value={passForm.new}
+                onChange={e => setPassForm(f => ({ ...f, new: e.target.value }))}
+                className={`w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  passForm.new && passForm.new.length < 8 ? 'border-red-400' : 'border-gray-300'
+                }`}
+                placeholder="min. 8 caratteri"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Conferma nuova password</label>
+              <input
+                type={showPass ? "text" : "password"}
+                value={passForm.confirm}
+                onChange={e => setPassForm(f => ({ ...f, confirm: e.target.value }))}
+                className={`w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  passForm.confirm && passForm.new !== passForm.confirm ? 'border-red-400' : 'border-gray-300'
+                }`}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={passLoading}
+              className="mt-2 bg-gray-800 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-900 disabled:opacity-50 transition"
+            >
+              {passLoading ? 'Aggiornamento...' : 'Aggiorna password'}
+            </button>
+          </form>
         </div>
       </div>
     </div>

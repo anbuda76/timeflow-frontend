@@ -11,3 +11,6 @@ export const updateUser = (id, data) =>
 
 export const deleteUser = (id) =>
   api.delete(`/users/${id}`).then(r => r.data);
+
+export const adminResetPassword = (id, new_password) =>
+  api.patch(`/users/${id}/reset-password`, { new_password });

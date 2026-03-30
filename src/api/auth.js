@@ -9,6 +9,24 @@ export const login = async (email, password) => {
   return user;
 };
 
+export const changePassword = async (current_password, new_password) => {
+  const response = await api.post('/users/me/change-password', {
+    current_password,
+    new_password,
+  });
+  return response.data;
+};
+
+export const forgotPassword = async (email) => {
+  const response = await api.post('/auth/forgot-password', { email });
+  return response.data;
+};
+
+export const resetPassword = async (token, new_password) => {
+  const response = await api.post('/auth/reset-password', { token, new_password });
+  return response.data;
+};
+
 export const logout = () => {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
