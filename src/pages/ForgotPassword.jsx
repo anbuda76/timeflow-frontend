@@ -8,6 +8,7 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [devLink, setDevLink] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,7 +18,11 @@ export default function ForgotPassword() {
 
     try {
       const res = await forgotPassword(email);
-      setMessage(res.message || 'Se l\'email esiste, riceverai le istruzioni per il reset.');
+      setMessage(res.message || "Se l'email esiste, riceverai le istruzioni per il reset.");
+      // Dev mode: backend returns the link directly when no SMTP is configured
+      if (res.dev_reset_link) {
+        setDevLink(res.dev_reset_link);
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Errore durante la richiesta di reset');
     } finally {
@@ -36,6 +41,19 @@ export default function ForgotPassword() {
         {message && (
           <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 mb-4 text-sm text-center">
             {message}
+          </div>
+        )}
+
+        {devLink && (
+          <div className="bg-amber-50 border border-amber-300 text-amber-800 rounded-lg p-4 mb-4 text-sm">
+            <p className="font-semibold mb-2">⚙️ Modalità sviluppo — nessun server email configurato</p>
+            <p className="mb-2 text-xs text-amber-700">Usa questo link per completare il reset (valido 30 minuti):</p>
+            <a
+              href={devLink}
+              className="block break-all text-blue-600 hover:underline text-xs font-mono bg-white rounded p-2 border border-amber-200"
+            >
+              {devLink}
+            </a>
           </div>
         )}
 
