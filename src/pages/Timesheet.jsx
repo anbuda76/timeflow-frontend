@@ -275,15 +275,15 @@ export default function Timesheet() {
                   <th className="sticky top-0 z-20 bg-white"></th>
                 </tr>
                 {/* Riga giorni - la linea rossa è il bordo inferiore */}
-                <tr className="border-b-2 border-red-500">
-                  <th className="sticky left-0 top-[49px] z-40 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-40 min-w-[10rem] max-w-[10rem]">
+                <tr>
+                  <th className="sticky left-0 top-[49px] z-40 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-40 min-w-[10rem] max-w-[10rem] border-b-2 border-red-500">
                     Cliente / Sistema
                   </th>
-                  <th className="sticky left-40 top-[49px] z-40 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
+                  <th className="sticky left-40 top-[49px] z-40 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200 border-b-2 border-red-500">
                     Progetto / Voce
                   </th>
                   {days.map(day => (
-                    <th key={day} className={`sticky top-[49px] z-20 px-1 py-3 text-center font-medium min-w-10
+                    <th key={day} className={`sticky top-[49px] z-20 px-1 py-3 text-center font-medium min-w-10 border-b-2 border-red-500
                       ${isWeekend(year, month, day) ? 'bg-gray-50 text-gray-400' : 'bg-white'}
                       ${isHoliday(day) ? 'bg-orange-50 text-orange-400' : ''}
                     `}>
@@ -293,7 +293,7 @@ export default function Timesheet() {
                       </div>
                     </th>
                   ))}
-                  <th className="sticky top-[49px] z-20 bg-white px-4 py-3 text-center font-semibold text-gray-700">Tot</th>
+                  <th className="sticky top-[49px] z-20 bg-white px-4 py-3 text-center font-semibold text-gray-700 border-b-2 border-red-500">Tot</th>
                 </tr>
               </thead>
               
