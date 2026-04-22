@@ -248,42 +248,37 @@ export default function Timesheet() {
             Nessun progetto assegnato. Contatta il tuo amministratore.
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm overflow-auto max-h-[calc(100vh-320px)]">
+          <div className="bg-white rounded-xl shadow-sm">
+            {/* Barra filtri - fuori dalla tabella, non scorre */}
+            <div className="flex gap-4 px-4 py-2 border-b border-gray-100">
+              <input
+                type="text"
+                placeholder="Filtra cliente..."
+                value={filterClient}
+                onChange={e => setFilterClient(e.target.value)}
+                className="w-40 min-w-[10rem] text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400"
+              />
+              <input
+                type="text"
+                placeholder="Filtra progetto..."
+                value={filterProject}
+                onChange={e => setFilterProject(e.target.value)}
+                className="w-64 min-w-[16rem] text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400"
+              />
+            </div>
+            {/* Tabella scrollabile */}
+            <div className="overflow-auto max-h-[calc(100vh-380px)]">
             <table className="min-w-full text-sm">
               <thead>
-                {/* Riga filtri - sopra la linea rossa */}
-                <tr className="bg-white border-b border-gray-100">
-                  <th className="sticky left-0 top-0 z-40 bg-white px-4 py-2 w-40 min-w-[10rem] max-w-[10rem]">
-                    <input
-                      type="text"
-                      placeholder="Filtra cliente..."
-                      value={filterClient}
-                      onChange={e => setFilterClient(e.target.value)}
-                      className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400 font-normal"
-                    />
-                  </th>
-                  <th className="sticky left-40 top-0 z-40 bg-white px-4 py-2 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
-                    <input
-                      type="text"
-                      placeholder="Filtra progetto..."
-                      value={filterProject}
-                      onChange={e => setFilterProject(e.target.value)}
-                      className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400 font-normal"
-                    />
-                  </th>
-                  {days.map(day => <th key={day} className="sticky top-0 z-20 bg-white min-w-10"></th>)}
-                  <th className="sticky top-0 z-20 bg-white"></th>
-                </tr>
-                {/* Riga giorni - la linea rossa è il bordo inferiore */}
-                <tr>
-                  <th className="sticky left-0 top-[49px] z-40 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-40 min-w-[10rem] max-w-[10rem] border-b-2 border-red-500">
+                <tr className="border-b-2 border-red-500">
+                  <th className="sticky left-0 top-0 z-20 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-40 min-w-[10rem] max-w-[10rem]">
                     Cliente / Sistema
                   </th>
-                  <th className="sticky left-40 top-[49px] z-40 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200 border-b-2 border-red-500">
+                  <th className="sticky left-40 top-0 z-20 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
                     Progetto / Voce
                   </th>
                   {days.map(day => (
-                    <th key={day} className={`sticky top-[49px] z-20 px-1 py-3 text-center font-medium min-w-10 border-b-2 border-red-500
+                    <th key={day} className={`sticky top-0 z-10 px-1 py-3 text-center font-medium min-w-10
                       ${isWeekend(year, month, day) ? 'bg-gray-50 text-gray-400' : 'bg-white'}
                       ${isHoliday(day) ? 'bg-orange-50 text-orange-400' : ''}
                     `}>
@@ -293,7 +288,7 @@ export default function Timesheet() {
                       </div>
                     </th>
                   ))}
-                  <th className="sticky top-[49px] z-20 bg-white px-4 py-3 text-center font-semibold text-gray-700 border-b-2 border-red-500">Tot</th>
+                  <th className="sticky top-0 z-10 bg-white px-4 py-3 text-center font-semibold text-gray-700">Tot</th>
                 </tr>
               </thead>
               
@@ -499,6 +494,7 @@ export default function Timesheet() {
                 </tr>
               </tfoot>
             </table>
+            </div>
           </div>
         )}
 
