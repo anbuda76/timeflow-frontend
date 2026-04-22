@@ -30,11 +30,24 @@ export default function Timesheet() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [filterClient, setFilterClient] = useState('');
+  const [filterProject, setFilterProject] = useState('');
 
   const holidayDates = holidays.map(h => h.holiday_date);
   const weekendAuthDateSet = new Set(weekendAuthorizations.map(a => a.auth_date));
   const systemProjects = projects.filter(p => p.is_system);
   const normalProjects = projects.filter(p => !p.is_system);
+  const filteredNormalProjects = [...normalProjects]
+    .sort((a, b) => {
+      const ca = (a.client_name || '').toLowerCase();
+      const cb = (b.client_name || '').toLowerCase();
+      if (ca !== cb) return ca < cb ? -1 : 1;
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    })
+    .filter(p =>
+      (!filterClient || (p.client_name || '').toLowerCase().includes(filterClient.toLowerCase())) &&
+      (!filterProject || p.name.toLowerCase().includes(filterProject.toLowerCase()))
+    );
 
   const isHoliday = (day) => {
     const dateStr = `${year}-${padDate(month)}-${padDate(day)}`;
@@ -235,19 +248,43 @@ export default function Timesheet() {
             Nessun progetto assegnato. Contatta il tuo amministratore.
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+          <div className="bg-white rounded-xl shadow-sm overflow-auto max-h-[calc(100vh-320px)]">
             <table className="min-w-full text-sm">
               <thead>
+                {/* Riga filtri - sopra la linea rossa */}
+                <tr className="bg-white border-b border-gray-100">
+                  <th className="sticky left-0 top-0 z-40 bg-white px-4 py-2 w-40 min-w-[10rem] max-w-[10rem]">
+                    <input
+                      type="text"
+                      placeholder="Filtra cliente..."
+                      value={filterClient}
+                      onChange={e => setFilterClient(e.target.value)}
+                      className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400 font-normal"
+                    />
+                  </th>
+                  <th className="sticky left-40 top-0 z-40 bg-white px-4 py-2 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
+                    <input
+                      type="text"
+                      placeholder="Filtra progetto..."
+                      value={filterProject}
+                      onChange={e => setFilterProject(e.target.value)}
+                      className="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400 font-normal"
+                    />
+                  </th>
+                  {days.map(day => <th key={day} className="sticky top-0 z-20 bg-white min-w-10"></th>)}
+                  <th className="sticky top-0 z-20 bg-white"></th>
+                </tr>
+                {/* Riga giorni - la linea rossa è il bordo inferiore */}
                 <tr className="border-b-2 border-red-500">
-                  <th className="sticky left-0 z-20 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-40 min-w-[10rem] max-w-[10rem]">
+                  <th className="sticky left-0 top-[49px] z-40 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-40 min-w-[10rem] max-w-[10rem]">
                     Cliente / Sistema
                   </th>
-                  <th className="sticky left-40 z-20 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
+                  <th className="sticky left-40 top-[49px] z-40 bg-white px-4 py-3 text-left font-semibold text-gray-700 w-64 min-w-[16rem] max-w-[16rem] border-r border-gray-200">
                     Progetto / Voce
                   </th>
                   {days.map(day => (
-                    <th key={day} className={`px-1 py-3 text-center font-medium min-w-10
-                      ${isWeekend(year, month, day) ? 'bg-gray-50 text-gray-400' : ''}
+                    <th key={day} className={`sticky top-[49px] z-20 px-1 py-3 text-center font-medium min-w-10
+                      ${isWeekend(year, month, day) ? 'bg-gray-50 text-gray-400' : 'bg-white'}
                       ${isHoliday(day) ? 'bg-orange-50 text-orange-400' : ''}
                     `}>
                       <div>{day}</div>
@@ -256,14 +293,14 @@ export default function Timesheet() {
                       </div>
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Tot</th>
+                  <th className="sticky top-[49px] z-20 bg-white px-4 py-3 text-center font-semibold text-gray-700">Tot</th>
                 </tr>
               </thead>
               
               {/* Progetti Lavorativi */}
               {normalProjects.length > 0 && (
                 <tbody>
-                  {normalProjects.map(project => {
+                  {filteredNormalProjects.map(project => {
                     const projectTotal = days.reduce((sum, day) =>
                       sum + (entries[`${project.id}-${day}`] || 0), 0);
                     return (
