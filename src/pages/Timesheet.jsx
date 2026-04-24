@@ -18,10 +18,14 @@ const isWeekend = (year, month, day) => {
 };
 const padDate = (n) => String(n).padStart(2, '0');
 
+const getHoursPerDay = (contractType) => {
+  return String(contractType || 'full_time').toLowerCase() === 'part_time' ? 4 : 8;
+};
+
 export default function Timesheet() {
   const today = new Date();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const hoursPerDay = currentUser.contract_type === 'part_time' ? 4 : 8;
+  const hoursPerDay = getHoursPerDay(currentUser.contract_type);
 
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
