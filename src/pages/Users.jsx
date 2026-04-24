@@ -10,9 +10,14 @@ const ROLE_COLORS = {
   employee: 'bg-gray-100 text-gray-600',
 };
 
+const CONTRACT_TYPES = [
+  { value: 'full_time', label: 'Full-time (8h/g)' },
+  { value: 'part_time', label: 'Part-time (4h/g)' },
+];
+
 const emptyForm = {
   first_name: '', last_name: '', email: '',
-  password: '', role: 'employee', hourly_rate: '', manager_id: '',
+  password: '', role: 'employee', contract_type: 'full_time', hourly_rate: '', manager_id: '',
 };
 
 export default function Users() {
@@ -55,6 +60,7 @@ export default function Users() {
       email: user.email,
       password: '',
       role: user.role,
+      contract_type: user.contract_type || 'full_time',
       hourly_rate: user.hourly_rate || '',
       manager_id: user.manager_id || '',
     });
@@ -75,6 +81,7 @@ export default function Users() {
           first_name: form.first_name,
           last_name: form.last_name,
           role: form.role,
+          contract_type: form.contract_type,
           hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
           manager_id: form.manager_id ? parseInt(form.manager_id) : null,
           is_active: editUser.is_active,
@@ -204,6 +211,7 @@ export default function Users() {
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Nome</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Email</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Ruolo</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Contratto</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Manager</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Costo/h</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Stato</th>
@@ -221,6 +229,17 @@ export default function Users() {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${ROLE_COLORS[user.role]}`}>
                       {user.role}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {user.role === 'employee' ? (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        user.contract_type === 'part_time'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {user.contract_type === 'part_time' ? 'Part-time' : 'Full-time'}
+                      </span>
+                    ) : <span className="text-gray-400 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">
                     {user.manager_id ? getManagerName(user.manager_id) : '—'}
@@ -359,6 +378,21 @@ export default function Users() {
                   />
                 </div>
               </div>
+
+              {form.role === 'employee' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Tipo contratto</label>
+                  <select
+                    value={form.contract_type}
+                    onChange={e => setForm(f => ({ ...f, contract_type: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {CONTRACT_TYPES.map(ct => (
+                      <option key={ct.value} value={ct.value}>{ct.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {form.role === 'employee' && (
                 <div>

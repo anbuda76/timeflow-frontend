@@ -20,6 +20,9 @@ const padDate = (n) => String(n).padStart(2, '0');
 
 export default function Timesheet() {
   const today = new Date();
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const hoursPerDay = currentUser.contract_type === 'part_time' ? 4 : 8;
+
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [timesheet, setTimesheet] = useState(null);
@@ -159,7 +162,7 @@ export default function Timesheet() {
       if (isWeekend(year, month, d)) return isWeekendAuthorized(d);
       return true;
     }).length;
-  const expectedHours = workingDays * 8;
+  const expectedHours = workingDays * hoursPerDay;
   const days = Array.from({ length: getDaysInMonth(year, month) }, (_, i) => i + 1);
 
   const statusColor = {
