@@ -203,7 +203,14 @@ export default function Reports() {
           {['anno', 'mese'].map(tab => (
             <button
               key={tab}
-              onClick={() => { setActiveTab(tab); setReport(null); setTrend(null); }}
+              onClick={() => {
+                setActiveTab(tab);
+                setReport(null);
+                setTrend(null);
+                if (tab === 'mese' && !selectedProject && projects.length > 0) {
+                  setSelectedProject(projects[0].id);
+                }
+              }}
               className={`px-6 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab
                   ? 'bg-blue-600 text-white'
@@ -245,13 +252,15 @@ export default function Reports() {
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Progetto (opzionale)</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Progetto {activeTab === 'mese' ? <span className="text-red-500">*</span> : '(opzionale)'}
+            </label>
             <select
               value={selectedProject || ''}
               onChange={e => setSelectedProject(e.target.value ? parseInt(e.target.value) : null)}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Tutti i progetti</option>
+              {activeTab === 'anno' && <option value="">Tutti i progetti</option>}
               {projects.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -259,7 +268,7 @@ export default function Reports() {
           </div>
           <button
             onClick={loadReport}
-            disabled={loading}
+            disabled={loading || (activeTab === 'mese' && !selectedProject)}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? 'Carico...' : '🔍 Genera Report'}
