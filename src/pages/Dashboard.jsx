@@ -5,13 +5,13 @@ import AppHeader from '../components/AppHeader';
 
 // Descrizioni tooltip per ogni card
 const TOOLTIPS = {
-  '/settings':                'Configura parametri aziendali, tariffe orarie e preferenze generali del sistema.',
-  '/users':                   'Gestisci gli utenti: crea account, assegna ruoli e manager, attiva o disattiva profili.',
-  '/projects':                'Crea e gestisci i progetti: clienti, budget ore e importi, stato di avanzamento.',
-  '/calendar':                'Visualizza e gestisci il calendario aziendale: festività, ponti e giorni lavorativi.',
-  '/weekend-authorizations':  'Rivedi e approva le richieste di lavoro nei weekend e nei giorni festivi.',
-  '/approvals':               'Revisiona e approva (o rifiuta) i timesheet inviati dal team.',
-  '/reports':                 'Analizza i costi per progetto e utente: snapshot annuale/mensile e andamento cumulato.',
+  '/settings':                'Configura parametri aziendali e preferenze generali del sistema.',
+  '/users':                   'Gestisci gli utenti: crea account, assegna ruoli, attiva o disattiva profili.',
+  '/projects':                'Gestisci i progetti: crea i progetti, i clienti, i budget ore e importi, attiva o disattiva profili, assegna le risorse al progetto.',
+  '/calendar':                'Gestisci il calendario aziendale: festività, ponti e giorni lavorativi.',
+  '/weekend-authorizations':  'Gestisci le richieste di lavoro nei weekend e nei giorni festivi.',
+  '/approvals':               'Gestisci i timesheet: visualizza e approva (o rifiuta) i timesheet inviati dal team.',
+  '/reports':                 'Neo Insight: reportistica timesheet (KPI per stato, dettaglio utenti) e analisi costi per progetto con snapshot e andamento mensile.',
   '/organizations':           'Gestisci le organizzazioni registrate nella piattaforma.',
   '/timesheet':               'Compila e invia il tuo timesheet mensile con le ore lavorate per progetto.',
 };
@@ -87,7 +87,7 @@ export default function Dashboard() {
       ],
       operative: [
         { icon: '✅', label: 'Approvazioni',   path: '/approvals', accent: 'operativa' },
-        { icon: '📊', label: 'Report Costi',   path: '/reports',   accent: 'operativa' },
+        { icon: '🔬', label: 'Neo Insight',   path: '/reports',   accent: 'operativa' },
       ],
     },
     super_admin: {
@@ -101,14 +101,14 @@ export default function Dashboard() {
         { icon: '🗓', label: 'Autorizzazioni Weekend',    path: '/weekend-authorizations',  accent: 'anagrafica' },
       ],
       operative: [
-        { icon: '📊', label: 'Report Costi', path: '/reports', accent: 'operativa' },
+        { icon: '🔬', label: 'Neo Insight', path: '/reports', accent: 'operativa' },
       ],
     },
     manager: {
       operative: [
         { icon: '✅', label: 'Approvazioni',        path: '/approvals',  accent: 'operativa' },
         { icon: '⏱',  label: 'Il Mio Timesheet',   path: '/timesheet',  accent: 'operativa' },
-        { icon: '📊', label: 'Report Costi',        path: '/reports',    accent: 'operativa' },
+        { icon: '🔬', label: 'Neo Insight',        path: '/reports',    accent: 'operativa' },
       ],
     },
     employee: {
