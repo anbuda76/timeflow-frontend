@@ -22,11 +22,15 @@ const formatCurrency = (val) =>
 const DeltaBadge = ({ value, pct }) => {
   if (value == null) return <span className="text-gray-400">—</span>;
   const positive = value > 0;
+  const label = positive ? 'Sforamento budget' : 'Risparmio vs budget';
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-      positive ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-    }`}>
-      {positive ? '+' : ''}{value} {pct != null ? `(${positive ? '+' : ''}${pct}%)` : ''}
+    <span
+      title={label}
+      className={`px-2 py-1 rounded-full text-xs font-medium cursor-help ${
+        positive ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+      }`}
+    >
+      {positive ? '↑ +' : '↓ '}{Math.abs(value)}{pct != null ? ` (${pct}%)` : ''}
     </span>
   );
 };
@@ -72,11 +76,19 @@ export default function Reports() {
     getProjects().then(data => setProjects(data.filter(p => !p.is_system)));
   }, []);
 
+  // Quando si passa al tab Mese e non c'è un progetto selezionato, forza il primo disponibile
+  useEffect(() => {
+    if (activeTab === 'mese' && !selectedProject && projects.length > 0) {
+      setSelectedProject(projects[0].id);
+    }
+  }, [activeTab, projects]);
+
   const loadReport = async () => {
     setLoading(true);
     try {
       if (activeTab === 'anno') {
         const params = { year };
+        if (month) params.month = month;
         if (selectedProject) params.project_id = selectedProject;
         const data = await getCostReport(params);
         setReport(data);
@@ -109,8 +121,23 @@ export default function Reports() {
     'Budget €': p.budget_amount || 0,
   })) || [];
 
-  // Dati trend mensile cumulato
-  const trendMonthlyData = MONTH_SHORT.map((m, i) => {
+  // Calcola l'ultimo mese con dati effettivi tra tutti i progetti del trend
+  const lastMonthWithData = trend
+    ? Math.max(
+        0,
+        ...trend.flatMap(p =>
+          p.monthly
+            .filter(m => m.hours > 0)
+            .map(m => m.month)
+        )
+      )
+    : 0;
+  // Mostra almeno i mesi fino a oggi se non ci sono dati futuri
+  const cutoffMonth = Math.max(lastMonthWithData, today.getFullYear() === year ? today.getMonth() + 1 : 12);
+  const visibleMonths = MONTH_SHORT.slice(0, cutoffMonth);
+
+  // Dati trend mensile cumulato (solo fino al mese di cutoff)
+  const trendMonthlyData = visibleMonths.map((m, i) => {
     const point = { month: m };
     trend?.forEach(p => {
       point[`${p.project_name} approvato`] = p.monthly[i]?.cumulative_approved || 0;
@@ -120,8 +147,8 @@ export default function Reports() {
     return point;
   });
 
-  // Dati trend mensile ore
-  const trendMonthlyHours = MONTH_SHORT.map((m, i) => {
+  // Dati trend mensile ore (solo fino al mese di cutoff)
+  const trendMonthlyHours = visibleMonths.map((m, i) => {
     const point = { month: m };
     trend?.forEach(p => {
       point[`${p.project_name} appr.`] = p.monthly[i]?.approved_hours || 0;
@@ -207,9 +234,6 @@ export default function Reports() {
                 setActiveTab(tab);
                 setReport(null);
                 setTrend(null);
-                if (tab === 'mese' && !selectedProject && projects.length > 0) {
-                  setSelectedProject(projects[0].id);
-                }
               }}
               className={`px-6 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab
@@ -217,7 +241,7 @@ export default function Reports() {
                   : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
               }`}
             >
-              {tab === 'anno' ? '📅 Report Annuale' : '📈 Trend Mensile'}
+              {tab === 'anno' ? '📅 Snapshot Costi (anno / mese)' : '📈 Andamento Mensile (cumulato)'}
             </button>
           ))}
         </div>
@@ -313,6 +337,14 @@ export default function Reports() {
                     <p className="text-xs text-gray-500 mt-1">Utenti coinvolti</p>
                   </div>
                 </div>
+
+                {/* Avviso budget annuale quando filtro mese attivo */}
+                {report.month && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-4 text-sm text-amber-700 flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>I valori <strong>Budget €</strong> e <strong>Budget h</strong> si riferiscono al budget annuale del progetto, non proporzionati al singolo mese.</span>
+                  </div>
+                )}
 
                 {/* Tabella per progetto */}
                 {report.projects && report.projects.length > 0 && (
@@ -568,26 +600,36 @@ export default function Reports() {
                         </tr>
                       </thead>
                       <tbody>
-                        {p.monthly.filter(m => m.hours > 0).map(m => (
-                          <tr key={m.month} className="border-b hover:bg-gray-50">
-                            <td className="px-4 py-2 text-gray-700">{MONTHS[m.month - 1]}</td>
-                            <td className="px-3 py-2 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">
-                              {m.approved_hours > 0 ? `${m.approved_hours}h` : '—'}
-                            </td>
-                            <td className="px-3 py-2 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">
-                              {m.pending_hours > 0 ? `${m.pending_hours}h` : '—'}
-                            </td>
-                            <td className="px-3 py-2 text-right text-green-600 bg-green-50 border-x border-green-100">
-                              {m.approved_cost > 0 ? formatCurrency(m.approved_cost) : '—'}
-                            </td>
-                            <td className="px-3 py-2 text-right text-amber-600 bg-amber-50 border-x border-amber-100">
-                              {m.pending_cost > 0 ? formatCurrency(m.pending_cost) : '—'}
-                            </td>
-                            <td className="px-4 py-2 text-right font-medium text-green-600">{formatCurrency(m.cumulative_approved)}</td>
-                            <td className="px-4 py-2 text-right font-medium text-blue-600">{formatCurrency(m.cumulative_cost)}</td>
-                            <td className="px-4 py-2 text-right text-gray-500">{formatCurrency(m.budget_target)}</td>
-                          </tr>
-                        ))}
+                        {p.monthly.slice(0, cutoffMonth).map(m => {
+                          const noData = m.hours === 0;
+                          return (
+                            <tr key={m.month} className={`border-b hover:bg-gray-50 ${noData ? 'opacity-40' : ''}`}>
+                              <td className="px-4 py-2 text-gray-700 flex items-center gap-1">
+                                {MONTHS[m.month - 1]}
+                                {noData && <span className="text-xs text-gray-400 ml-1">nessuna attività</span>}
+                              </td>
+                              <td className="px-3 py-2 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">
+                                {m.approved_hours > 0 ? `${m.approved_hours}h` : '—'}
+                              </td>
+                              <td className="px-3 py-2 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">
+                                {m.pending_hours > 0 ? `${m.pending_hours}h` : '—'}
+                              </td>
+                              <td className="px-3 py-2 text-right text-green-600 bg-green-50 border-x border-green-100">
+                                {m.approved_cost > 0 ? formatCurrency(m.approved_cost) : '—'}
+                              </td>
+                              <td className="px-3 py-2 text-right text-amber-600 bg-amber-50 border-x border-amber-100">
+                                {m.pending_cost > 0 ? formatCurrency(m.pending_cost) : '—'}
+                              </td>
+                              <td className="px-4 py-2 text-right font-medium text-green-600">
+                                {noData ? '—' : formatCurrency(m.cumulative_approved)}
+                              </td>
+                              <td className="px-4 py-2 text-right font-medium text-blue-600">
+                                {noData ? '—' : formatCurrency(m.cumulative_cost)}
+                              </td>
+                              <td className="px-4 py-2 text-right text-gray-500">{formatCurrency(m.budget_target)}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
