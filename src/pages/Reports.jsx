@@ -6,7 +6,8 @@ import AppHeader from '../components/AppHeader';
 import { getCostReport, getMonthlyTrend, exportExcel } from '../api/reports';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer
+  Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell,
 } from 'recharts';
 
 // ── Costanti ─────────────────────────────────────────────────────────────────
@@ -18,6 +19,13 @@ const MONTHS = [
 const MONTH_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 const YEARS = [2024, 2025, 2026, 2027];
+
+const STATUS_COLORS = {
+  approved:  '#22c55e',
+  submitted: '#3b82f6',
+  rejected:  '#ef4444',
+  draft:     '#94a3b8',
+};
 
 // ── Helpers UI ────────────────────────────────────────────────────────────────
 
@@ -88,15 +96,16 @@ const SelectMonth = ({ value, onChange, optional = false }) => (
   </div>
 );
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // TAB TIMESHEET
-// ═══════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 function TabTimesheet() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [timesheets, setTimesheets] = useState(null);
+  const [yearData, setYearData] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -110,8 +119,12 @@ function TabTimesheet() {
   const loadReport = async () => {
     setLoading(true);
     try {
-      const data = await getTimesheets({ year, month });
-      setTimesheets(data);
+      const [monthData, allYear] = await Promise.all([
+        getTimesheets({ year, month }),
+        getTimesheets({ year }),
+      ]);
+      setTimesheets(monthData);
+      setYearData(allYear);
     } catch (err) {
       console.error(err);
     } finally {
@@ -119,21 +132,47 @@ function TabTimesheet() {
     }
   };
 
-  // KPI calcolati
-  const total     = timesheets?.length ?? 0;
-  const approved  = timesheets?.filter(t => t.status === 'approved').length  ?? 0;
-  const submitted = timesheets?.filter(t => t.status === 'submitted').length ?? 0;
-  const rejected  = timesheets?.filter(t => t.status === 'rejected').length  ?? 0;
-  const draft     = timesheets?.filter(t => t.status === 'draft').length     ?? 0;
-  const totalHours = timesheets?.reduce((s, t) => s + (t.total_hours || 0), 0).toFixed(1) ?? '—';
+  // KPI mese
+  const total      = timesheets?.length ?? 0;
+  const approved   = timesheets?.filter(t => t.status === 'approved').length  ?? 0;
+  const submitted  = timesheets?.filter(t => t.status === 'submitted').length ?? 0;
+  const rejected   = timesheets?.filter(t => t.status === 'rejected').length  ?? 0;
+  const draft      = timesheets?.filter(t => t.status === 'draft').length     ?? 0;
+
+  const orePrevist = timesheets
+    ? timesheets.reduce((s, t) => s + (t.total_hours || 0), 0).toFixed(1)
+    : '—';
+  const oreApprova = timesheets
+    ? timesheets.filter(t => t.status === 'approved').reduce((s, t) => s + (t.total_hours || 0), 0).toFixed(1)
+    : '—';
+
+  // Istogramma trend annuale (12 mesi)
+  const barYearData = MONTH_SHORT.map((label, i) => {
+    const mNum = i + 1;
+    const mRows = yearData?.filter(t => t.month === mNum) ?? [];
+    return {
+      mese: label,
+      'Ore previste':  parseFloat(mRows.reduce((s, t) => s + (t.total_hours || 0), 0).toFixed(1)),
+      'Ore approvate': parseFloat(mRows.filter(t => t.status === 'approved').reduce((s, t) => s + (t.total_hours || 0), 0).toFixed(1)),
+    };
+  });
+
+  // Torta distribuzione ore mese per stato
+  const pieData = timesheets
+    ? [
+        { name: 'Approvate',       value: parseFloat(timesheets.filter(t => t.status === 'approved').reduce((s,t)  => s+(t.total_hours||0),0).toFixed(1)), color: STATUS_COLORS.approved  },
+        { name: 'In approvazione', value: parseFloat(timesheets.filter(t => t.status === 'submitted').reduce((s,t) => s+(t.total_hours||0),0).toFixed(1)), color: STATUS_COLORS.submitted },
+        { name: 'Rifiutate',       value: parseFloat(timesheets.filter(t => t.status === 'rejected').reduce((s,t)  => s+(t.total_hours||0),0).toFixed(1)), color: STATUS_COLORS.rejected  },
+        { name: 'Bozza',           value: parseFloat(timesheets.filter(t => t.status === 'draft').reduce((s,t)     => s+(t.total_hours||0),0).toFixed(1)), color: STATUS_COLORS.draft     },
+      ].filter(d => d.value > 0)
+    : [];
 
   return (
     <div>
       {/* Filtri + Export */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
-        <SelectYear value={year} onChange={v => { setYear(v); setTimesheets(null); }} />
+        <SelectYear value={year} onChange={v => { setYear(v); setTimesheets(null); setYearData(null); }} />
         <SelectMonth value={month} onChange={v => { setMonth(v); setTimesheets(null); }} optional={false} />
-
         <button
           onClick={loadReport}
           disabled={loading || !month}
@@ -141,7 +180,6 @@ function TabTimesheet() {
         >
           {loading ? 'Carico…' : '🔍 Genera Report'}
         </button>
-
         <div className="ml-auto">
           <button
             onClick={async () => {
@@ -167,14 +205,75 @@ function TabTimesheet() {
 
       {timesheets && (
         <>
-          {/* KPI */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-            <KpiCard value={total}     label="Compilati"        color="border-blue-400"   textColor="text-blue-600" />
-            <KpiCard value={approved}  label="Approvati"        color="border-green-500"  textColor="text-green-600" />
-            <KpiCard value={submitted} label="In approvazione"  color="border-blue-300"   textColor="text-blue-500" />
-            <KpiCard value={rejected}  label="Rifiutati"        color="border-red-400"    textColor="text-red-600" />
-            <KpiCard value={draft}     label="Bozza / Non inviati" color="border-gray-300" textColor="text-gray-600" />
-            <KpiCard value={`${totalHours}h`} label="Ore totali" color="border-indigo-400" textColor="text-indigo-600" small />
+          {/* KPI — conteggi timesheet */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-3">
+            <KpiCard value={total}     label="Compilati"           color="border-blue-400"  textColor="text-blue-600" />
+            <KpiCard value={approved}  label="Approvati"           color="border-green-500" textColor="text-green-600" />
+            <KpiCard value={submitted} label="In approvazione"     color="border-blue-300"  textColor="text-blue-500" />
+            <KpiCard value={rejected}  label="Rifiutati"           color="border-red-400"   textColor="text-red-600" />
+            <KpiCard value={draft}     label="Bozza / Non inviati" color="border-gray-300"  textColor="text-gray-600" />
+          </div>
+
+          {/* KPI — ore */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <KpiCard value={`${orePrevist}h`} label="Ore previste (tutti gli stati)" color="border-indigo-300" textColor="text-indigo-500" small />
+            <KpiCard value={`${oreApprova}h`} label="Ore approvate"                  color="border-indigo-600" textColor="text-indigo-700" small />
+          </div>
+
+          {/* Grafici */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+            {/* Istogramma trend annuale */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h2 className="font-semibold text-gray-800 mb-1">📊 Trend annuale ore — {year}</h2>
+              <p className="text-xs text-gray-400 mb-4">Ore previste (tutti gli stati) vs ore approvate, per mese</p>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={barYearData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mese" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="Ore previste"  fill="#a5b4fc" radius={[3,3,0,0]} />
+                  <Bar dataKey="Ore approvate" fill="#22c55e" radius={[3,3,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Torta distribuzione ore mese */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h2 className="font-semibold text-gray-800 mb-1">🥧 Distribuzione ore — {MONTHS[month - 1]} {year}</h2>
+              <p className="text-xs text-gray-400 mb-2">Ripartizione delle ore previste per stato del timesheet</p>
+              {pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, value, percent }) =>
+                        `${name}: ${value}h (${(percent * 100).toFixed(0)}%)`
+                      }
+                      labelLine={false}
+                    >
+                      {pieData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(val) => `${val}h`} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-52 text-gray-400 text-sm">
+                  Nessuna ora registrata per questo mese
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Tabella dettaglio utenti */}
@@ -190,7 +289,7 @@ function TabTimesheet() {
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Utente</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">Stato</th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-700">Ore totali</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">Ore</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -227,9 +326,9 @@ function TabTimesheet() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // TAB COST CENTER
-// ═══════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 function TabCostCenter() {
   const today = new Date();
@@ -272,7 +371,6 @@ function TabCostCenter() {
     }
   };
 
-  // Dati grafici
   const barDataHours = report?.projects?.map(p => ({
     name: p.project_name,
     'Ore approvate': p.approved_hours,
@@ -371,7 +469,7 @@ function TabCostCenter() {
         </button>
       </div>
 
-      {/* ── TAB ANNO ── */}
+      {/* SUB-TAB ANNO */}
       {costTab === 'anno' && (
         <>
           {!report && !loading && (
@@ -381,17 +479,15 @@ function TabCostCenter() {
           )}
           {report && (
             <>
-              {/* KPI */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                <KpiCard value={`${report.total_approved_hours}h`} label="Ore approvate"   color="border-green-500" textColor="text-green-600" />
-                <KpiCard value={`${report.total_pending_hours}h`}  label="Ore in attesa"   color="border-amber-400" textColor="text-amber-500" />
+                <KpiCard value={`${report.total_approved_hours}h`} label="Ore approvate"    color="border-green-500" textColor="text-green-600" />
+                <KpiCard value={`${report.total_pending_hours}h`}  label="Ore in attesa"    color="border-amber-400" textColor="text-amber-500" />
                 <KpiCard value={formatCurrency(report.total_approved_cost)} label="Costo approvato" color="border-green-500" textColor="text-green-600" small />
                 <KpiCard value={formatCurrency(report.total_pending_cost)}  label="Costo in attesa" color="border-amber-400" textColor="text-amber-500" small />
-                <KpiCard value={report.projects?.length || 0} label="Progetti"        color="border-gray-300" textColor="text-gray-700" />
+                <KpiCard value={report.projects?.length || 0} label="Progetti"         color="border-gray-300" textColor="text-gray-700" />
                 <KpiCard value={report.users?.length || 0}    label="Utenti coinvolti" color="border-gray-300" textColor="text-gray-700" />
               </div>
 
-              {/* Warning budget annuale */}
               {report.month && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-4 text-sm text-amber-700 flex items-center gap-2">
                   <span>⚠️</span>
@@ -399,7 +495,6 @@ function TabCostCenter() {
                 </div>
               )}
 
-              {/* Tabella per progetto */}
               {report.projects?.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm mb-6 overflow-x-auto">
                   <div className="px-4 py-3 border-b">
@@ -448,7 +543,6 @@ function TabCostCenter() {
                 </div>
               )}
 
-              {/* Tabella per utente */}
               {report.users?.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
                   <div className="px-4 py-3 border-b">
@@ -485,7 +579,6 @@ function TabCostCenter() {
                 </div>
               )}
 
-              {/* Grafici */}
               {report.projects?.length > 0 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="bg-white rounded-xl shadow-sm p-4">
@@ -497,9 +590,9 @@ function TabCostCenter() {
                         <YAxis tick={{ fontSize: 11 }} />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="Budget h"       fill="#94a3b8" />
-                        <Bar dataKey="Ore approvate"  fill="#22c55e" stackId="cons" />
-                        <Bar dataKey="Ore in attesa"  fill="#f59e0b" stackId="cons" />
+                        <Bar dataKey="Budget h"      fill="#94a3b8" />
+                        <Bar dataKey="Ore approvate" fill="#22c55e" stackId="cons" />
+                        <Bar dataKey="Ore in attesa" fill="#f59e0b" stackId="cons" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -525,7 +618,7 @@ function TabCostCenter() {
         </>
       )}
 
-      {/* ── TAB MESE ── */}
+      {/* SUB-TAB MESE */}
       {costTab === 'mese' && (
         <>
           {!trend && !loading && (
@@ -535,7 +628,6 @@ function TabCostCenter() {
           )}
           {trend && trend.length > 0 && (
             <>
-              {/* Grafico cumulato */}
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
                 <h2 className="font-semibold text-gray-800 mb-1">📈 Costo cumulato vs Budget target (mensile)</h2>
                 <p className="text-xs text-gray-400 mb-4">Linea continua = approvato · Tratteggiata = totale · Puntinata = target budget</p>
@@ -563,7 +655,6 @@ function TabCostCenter() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Grafico ore mensili */}
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
                 <h2 className="font-semibold text-gray-800 mb-1">⏱ Ore mensili per progetto</h2>
                 <p className="text-xs text-gray-400 mb-4">Verde = approvate · Arancione = in attesa</p>
@@ -584,7 +675,6 @@ function TabCostCenter() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Tabelle mensili per progetto */}
               {trend.map(p => (
                 <div key={p.project_id} className="bg-white rounded-xl shadow-sm mb-4 overflow-x-auto">
                   <div className="px-4 py-3 border-b flex justify-between items-center">
@@ -637,16 +727,16 @@ function TabCostCenter() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // PAGINA PRINCIPALE
-// ═══════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState('timesheet');
 
   const TABS = [
-    { id: 'timesheet',   label: '📋 Timesheet'   },
-    { id: 'cost-center', label: '💶 Cost Center'  },
+    { id: 'timesheet',   label: '📋 Timesheet'  },
+    { id: 'cost-center', label: '💶 Cost Center' },
   ];
 
   return (
@@ -654,14 +744,12 @@ export default function Reports() {
       <AppHeader />
       <div className="max-w-7xl mx-auto px-4 py-6">
 
-        {/* Header pagina */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">🔬 Neo Insight</h1>
           <p className="text-sm text-gray-400 mt-1">Reportistica e analisi costi</p>
         </div>
 
-        {/* Tab principali */}
-        <div className="flex gap-2 mb-6 border-b border-gray-200 pb-0">
+        <div className="flex gap-2 mb-6 border-b border-gray-200">
           {TABS.map(tab => (
             <button
               key={tab.id}
