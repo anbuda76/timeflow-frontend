@@ -10,36 +10,44 @@ const MONTHS = [
   'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'
 ];
 
+const YEARS = [2024, 2025, 2026, 2027];
+
 const STATUS_COLORS = {
-  draft: 'bg-gray-100 text-gray-600',
+  draft:     'bg-gray-100 text-gray-600',
   submitted: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-600',
+  approved:  'bg-green-100 text-green-700',
+  rejected:  'bg-red-100 text-red-600',
 };
 
 const STATUS_LABELS = {
-  draft: 'Bozza',
+  draft:     'Bozza',
   submitted: 'In attesa',
-  approved: 'Approvato',
-  rejected: 'Rifiutato',
+  approved:  'Approvato',
+  rejected:  'Rifiutato',
 };
 
 export default function Approvals() {
-  const [timesheets, setTimesheets] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedTs, setSelectedTs] = useState(null);
+  const today = new Date();
+  const [timesheets,    setTimesheets]    = useState([]);
+  const [users,         setUsers]         = useState([]);
+  const [projects,      setProjects]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [selectedTs,    setSelectedTs]    = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionNote, setRejectionNote] = useState('');
-  const [filter, setFilter] = useState('submitted');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [filterStatus,  setFilterStatus]  = useState('submitted');
+  const [filterYear,    setFilterYear]    = useState(today.getFullYear());
+  const [filterMonth,   setFilterMonth]   = useState(null);
+  const [saving,        setSaving]        = useState(false);
+  const [message,       setMessage]       = useState('');
 
   useEffect(() => {
     Promise.all([
-      api.get('/timesheets').then(r => r.data).catch(err => { console.log('ERRORE:', err.response?.status, err.response?.data); return []; }),
+      api.get('/timesheets').then(r => r.data).catch(err => {
+        console.log('ERRORE:', err.response?.status, err.response?.data);
+        return [];
+      }),
       getUsers(),
       getProjects(),
     ]).then(([ts, usrs, projs]) => {
@@ -54,15 +62,36 @@ export default function Approvals() {
     return u ? `${u.first_name} ${u.last_name}` : `Utente #${userId}`;
   };
 
+  const getProjectName = (projectId) => {
+    const p = projects.find(p => p.id === projectId);
+    return p ? p.name : `Progetto #${projectId}`;
+  };
+
   const getProjectLabel = (entry) => {
-    const p = projects.find(p => p.id === entry.project_id);
-    const name = p ? p.name : `Progetto #${entry.project_id}`;
+    const name = getProjectName(entry.project_id);
     return entry.notes ? `${name} / ${entry.notes}` : name;
   };
 
-  const filtered = timesheets.filter(ts =>
-    filter === 'all' ? true : ts.status === filter
-  );
+  const filtered = timesheets.filter(ts => {
+    if (filterStatus !== 'all' && ts.status !== filterStatus) return false;
+    if (ts.year !== filterYear) return false;
+    if (filterMonth && ts.month !== filterMonth) return false;
+    return true;
+  });
+
+  // Summary ore per progetto del timesheet selezionato
+  const projectSummary = (() => {
+    if (!selectedTs?.entries?.length) return [];
+    const map = {};
+    for (const e of selectedTs.entries) {
+      if (!map[e.project_id]) {
+        map[e.project_id] = { name: getProjectName(e.project_id), hours: 0, days: 0 };
+      }
+      map[e.project_id].hours += e.hours;
+      map[e.project_id].days  += 1;
+    }
+    return Object.values(map).sort((a, b) => b.hours - a.hours);
+  })();
 
   const openDetail = async (ts) => {
     setDetailLoading(true);
@@ -82,10 +111,10 @@ export default function Approvals() {
       const updated = await reviewTimesheet(selectedTs.id, true, null);
       setTimesheets(prev => prev.map(ts => ts.id === updated.id ? updated : ts));
       setSelectedTs(updated);
-      setMessage('✅ Timesheet approvato!');
+      setMessage('Timesheet approvato!');
       setTimeout(() => setMessage(''), 3000);
     } catch {
-      setMessage('❌ Errore nell\'approvazione');
+      setMessage('Errore nell\'approvazione');
     } finally {
       setSaving(false);
     }
@@ -103,7 +132,7 @@ export default function Approvals() {
       setMessage('Timesheet rifiutato');
       setTimeout(() => setMessage(''), 3000);
     } catch {
-      setMessage('❌ Errore nel rifiuto');
+      setMessage('Errore nel rifiuto');
     } finally {
       setSaving(false);
     }
@@ -121,32 +150,66 @@ export default function Approvals() {
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl font-bold text-gray-800">✅ Approvazioni Timesheet</h1>
-          {message && <span className="text-sm">{message}</span>}
+          <h1 className="text-xl font-bold text-gray-800">Approvazioni Timesheet</h1>
+          {message && <span className="text-sm text-gray-700">{message}</span>}
         </div>
 
         <div className="flex gap-6">
-          {/* Lista sinistra */}
+
+          {/* ── Pannello sinistro ─────────────────────────── */}
           <div className="w-80 flex-shrink-0">
-            <div className="flex gap-2 mb-4">
-              {['submitted', 'approved', 'rejected', 'all'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`text-xs px-3 py-1.5 rounded-full font-medium transition ${
-                    filter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-300'
-                  }`}
+
+            {/* Filtri */}
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4 space-y-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filtri</p>
+
+              {/* Anno + Mese */}
+              <div className="flex gap-2">
+                <select
+                  value={filterYear}
+                  onChange={e => { setFilterYear(parseInt(e.target.value)); setSelectedTs(null); }}
+                  className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {f === 'submitted' ? 'In attesa' : f === 'all' ? 'Tutti' : STATUS_LABELS[f]}
-                  {f === 'submitted' && (
-                    <span className="ml-1 bg-yellow-400 text-white rounded-full px-1.5 text-xs">
-                      {timesheets.filter(ts => ts.status === 'submitted').length}
-                    </span>
-                  )}
-                </button>
-              ))}
+                  {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select
+                  value={filterMonth ?? ''}
+                  onChange={e => { setFilterMonth(e.target.value ? parseInt(e.target.value) : null); setSelectedTs(null); }}
+                  className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Tutti i mesi</option>
+                  {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                </select>
+              </div>
+
+              {/* Status pills */}
+              <div className="flex flex-wrap gap-1.5">
+                {['submitted', 'approved', 'rejected', 'all'].map(f => (
+                  <button
+                    key={f}
+                    onClick={() => { setFilterStatus(f); setSelectedTs(null); }}
+                    className={`text-xs px-3 py-1.5 rounded-full font-medium transition ${
+                      filterStatus === f
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {f === 'submitted' ? 'In attesa' : f === 'all' ? 'Tutti' : STATUS_LABELS[f]}
+                    {f === 'submitted' && (
+                      <span className="ml-1 bg-yellow-400 text-white rounded-full px-1.5">
+                        {timesheets.filter(ts =>
+                          ts.status === 'submitted' &&
+                          ts.year === filterYear &&
+                          (!filterMonth || ts.month === filterMonth)
+                        ).length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
 
+            {/* Lista timesheet */}
             <div className="space-y-2">
               {filtered.length === 0 && (
                 <p className="text-center text-gray-400 py-8 text-sm">Nessun timesheet</p>
@@ -174,8 +237,8 @@ export default function Approvals() {
             </div>
           </div>
 
-          {/* Dettaglio destra */}
-          <div className="flex-1">
+          {/* ── Dettaglio destra ──────────────────────────── */}
+          <div className="flex-1 min-w-0">
             {detailLoading && (
               <div className="bg-white rounded-xl p-8 text-center text-gray-400">
                 Caricamento dettaglio...
@@ -190,6 +253,8 @@ export default function Approvals() {
 
             {!detailLoading && selectedTs && (
               <div className="bg-white rounded-xl shadow-sm p-6">
+
+                {/* Header */}
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <h2 className="text-lg font-bold text-gray-800">
@@ -202,6 +267,7 @@ export default function Approvals() {
                   </span>
                 </div>
 
+                {/* KPI */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-blue-50 rounded-xl p-4 text-center">
                     <p className="text-2xl font-bold text-blue-600">{selectedTs.total_hours}h</p>
@@ -209,7 +275,7 @@ export default function Approvals() {
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4 text-center">
                     <p className="text-2xl font-bold text-gray-700">{selectedTs.entries?.length || 0}</p>
-                    <p className="text-sm text-gray-500">Giorni lavorati</p>
+                    <p className="text-sm text-gray-500">Righe inserite</p>
                   </div>
                 </div>
 
@@ -225,15 +291,48 @@ export default function Approvals() {
                   </div>
                 )}
 
+                {/* Riepilogo per progetto */}
+                {projectSummary.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Riepilogo per progetto</h3>
+                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600">Progetto</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">Giorni</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold text-gray-600">Ore totali</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {projectSummary.map(p => (
+                            <tr key={p.name} className="border-t border-gray-100">
+                              <td className="px-4 py-2.5 font-medium text-gray-800">{p.name}</td>
+                              <td className="px-3 py-2.5 text-right text-gray-500">{p.days}</td>
+                              <td className="px-4 py-2.5 text-right font-bold text-blue-600">{p.hours.toFixed(1)}h</td>
+                            </tr>
+                          ))}
+                          <tr className="border-t-2 border-gray-200 bg-gray-50">
+                            <td className="px-4 py-2 font-semibold text-gray-700">Totale</td>
+                            <td className="px-3 py-2 text-right font-semibold text-gray-600">{selectedTs.entries.length}</td>
+                            <td className="px-4 py-2 text-right font-bold text-blue-700">{selectedTs.total_hours}h</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dettaglio giornaliero */}
                 {selectedTs.entries && selectedTs.entries.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Ore per giorno</h3>
-                    <div className="overflow-x-auto">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Dettaglio giornaliero</h3>
+                    <div className="rounded-lg border border-gray-200 overflow-hidden">
                       <table className="min-w-full text-xs">
                         <thead>
                           <tr className="bg-gray-50">
                             <th className="px-3 py-2 text-left text-gray-600">Data</th>
-                            <th className="px-3 py-2 text-left text-gray-600">Progetto</th>
+                            <th className="px-3 py-2 text-left text-gray-600">Progetto / Voce</th>
                             <th className="px-3 py-2 text-right text-gray-600">Ore</th>
                           </tr>
                         </thead>
@@ -241,18 +340,19 @@ export default function Approvals() {
                           {selectedTs.entries
                             .sort((a, b) => a.entry_date.localeCompare(b.entry_date))
                             .map(entry => (
-                            <tr key={entry.id} className="border-b">
-                              <td className="px-3 py-2 text-gray-700">{entry.entry_date}</td>
-                              <td className="px-3 py-2 text-gray-600">{getProjectLabel(entry)}</td>
-                              <td className="px-3 py-2 text-right font-medium text-blue-600">{entry.hours}h</td>
-                            </tr>
-                          ))}
+                              <tr key={entry.id} className="border-t border-gray-100 hover:bg-gray-50">
+                                <td className="px-3 py-2 text-gray-700">{entry.entry_date}</td>
+                                <td className="px-3 py-2 text-gray-600">{getProjectLabel(entry)}</td>
+                                <td className="px-3 py-2 text-right font-medium text-blue-600">{entry.hours}h</td>
+                              </tr>
+                            ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 )}
 
+                {/* Azioni */}
                 {selectedTs.status === 'submitted' && (
                   <div className="flex gap-3">
                     <button
@@ -260,14 +360,14 @@ export default function Approvals() {
                       disabled={saving}
                       className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
                     >
-                      ✅ Approva
+                      Approva
                     </button>
                     <button
                       onClick={() => setShowRejectModal(true)}
                       disabled={saving}
                       className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 disabled:opacity-50"
                     >
-                      ❌ Rifiuta
+                      Rifiuta
                     </button>
                   </div>
                 )}
