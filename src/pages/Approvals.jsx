@@ -2,6 +2,7 @@ import api from '../api/client';
 import { useState, useEffect } from 'react';
 import { getTimesheet, reviewTimesheet } from '../api/approvals';
 import { getUsers } from '../api/users';
+import { getProjects } from '../api/projects';
 import AppHeader from '../components/AppHeader';
 
 const MONTHS = [
@@ -26,6 +27,7 @@ const STATUS_LABELS = {
 export default function Approvals() {
   const [timesheets, setTimesheets] = useState([]);
   const [users, setUsers] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTs, setSelectedTs] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -36,15 +38,26 @@ export default function Approvals() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    api.get('/timesheets')
-      .then(r => setTimesheets(r.data))
-      .catch(err => console.log('ERRORE:', err.response?.status, err.response?.data));
-    getUsers().then(setUsers).finally(() => setLoading(false));
+    Promise.all([
+      api.get('/timesheets').then(r => r.data).catch(err => { console.log('ERRORE:', err.response?.status, err.response?.data); return []; }),
+      getUsers(),
+      getProjects(),
+    ]).then(([ts, usrs, projs]) => {
+      setTimesheets(ts);
+      setUsers(usrs);
+      setProjects(projs);
+    }).finally(() => setLoading(false));
   }, []);
 
   const getUserName = (userId) => {
     const u = users.find(u => u.id === userId);
     return u ? `${u.first_name} ${u.last_name}` : `Utente #${userId}`;
+  };
+
+  const getProjectLabel = (entry) => {
+    const p = projects.find(p => p.id === entry.project_id);
+    const name = p ? p.name : `Progetto #${entry.project_id}`;
+    return entry.notes ? `${name} / ${entry.notes}` : name;
   };
 
   const filtered = timesheets.filter(ts =>
@@ -230,7 +243,7 @@ export default function Approvals() {
                             .map(entry => (
                             <tr key={entry.id} className="border-b">
                               <td className="px-3 py-2 text-gray-700">{entry.entry_date}</td>
-                              <td className="px-3 py-2 text-gray-600">Progetto #{entry.project_id}</td>
+                              <td className="px-3 py-2 text-gray-600">{getProjectLabel(entry)}</td>
                               <td className="px-3 py-2 text-right font-medium text-blue-600">{entry.hours}h</td>
                             </tr>
                           ))}

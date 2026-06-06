@@ -17,6 +17,7 @@ export default function Projects() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('active');
 
   useEffect(() => {
     Promise.all([getProjects(), getUsers()])
@@ -24,10 +25,12 @@ export default function Projects() {
       .finally(() => setLoading(false));
   }, []);
 
-    const filtered = projects.filter(p =>
-    !p.is_system &&
-    `${p.name} ${p.client_name || ''}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = projects.filter(p => {
+    if (p.is_system) return false;
+    if (statusFilter === 'active' && !p.is_active) return false;
+    if (statusFilter === 'closed' && p.is_active) return false;
+    return `${p.name} ${p.client_name || ''}`.toLowerCase().includes(search.toLowerCase());
+  });
 
   const openCreate = () => {
     setEditProject(null);
@@ -154,17 +157,28 @@ export default function Projects() {
           </button>
         </div>
 
-        {/* Search */}
-        <input
-          type="text"
-          placeholder="Cerca per nome o cliente..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full mb-6 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        {/* Filtri */}
+        <div className="flex gap-3 mb-6">
+          <input
+            type="text"
+            placeholder="Cerca per nome o cliente..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">Tutti i progetti</option>
+            <option value="active">Solo attivi</option>
+            <option value="closed">Solo chiusi</option>
+          </select>
+        </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-sm text-center">
             <p className="text-2xl font-bold text-blue-600">{projects.filter(p => !p.is_system).length}</p>
             <p className="text-sm text-gray-500">Progetti totali</p>
@@ -172,12 +186,6 @@ export default function Projects() {
           <div className="bg-white rounded-xl p-4 shadow-sm text-center">
             <p className="text-2xl font-bold text-green-600">{projects.filter(p => !p.is_system && p.is_active).length}</p>
             <p className="text-sm text-gray-500">Attivi</p>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-            <p className="text-2xl font-bold text-gray-500">
-              {projects.filter(p => !p.is_system).reduce((sum, p) => sum + (p.used_hours || 0), 0)}h
-            </p>
-            <p className="text-sm text-gray-500">Ore totali lavorate</p>
           </div>
         </div>
 
