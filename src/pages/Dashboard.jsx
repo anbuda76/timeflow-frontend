@@ -16,15 +16,7 @@ const TOOLTIPS = {
   '/timesheet':               'Compila e invia il tuo timesheet mensile con le ore lavorate per progetto.',
 };
 
-// Colori accent per categoria
-const ACCENT = {
-  top:       'border-blue-400  group-hover:border-blue-500  group-hover:shadow-blue-100',
-  anagrafica:'border-indigo-400 group-hover:border-indigo-500 group-hover:shadow-indigo-100',
-  operativa: 'border-emerald-400 group-hover:border-emerald-500 group-hover:shadow-emerald-100',
-  default:   'border-gray-300  group-hover:border-blue-400  group-hover:shadow-blue-100',
-};
-
-function DashCard({ icon, label, path, accent = 'default', navigate }) {
+function DashCard({ icon, label, path, navigate }) {
   const [showTip, setShowTip] = useState(false);
   const tip = TOOLTIPS[path];
 
@@ -34,12 +26,7 @@ function DashCard({ icon, label, path, accent = 'default', navigate }) {
         onClick={() => navigate(path)}
         onMouseEnter={() => setShowTip(true)}
         onMouseLeave={() => setShowTip(false)}
-        className={`
-          group w-full bg-white rounded-2xl border-2 p-6 text-left
-          shadow-sm transition-all duration-200
-          hover:shadow-lg hover:-translate-y-0.5 hover:bg-gradient-to-br hover:from-white hover:to-slate-50
-          ${ACCENT[accent]}
-        `}
+        className="group w-full bg-white rounded-2xl border border-gray-200 p-6 text-left shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:bg-gradient-to-br hover:from-white hover:to-slate-50 hover:border-gray-300"
       >
         <span className="text-3xl block mb-3 transition-transform duration-200 group-hover:scale-110">{icon}</span>
         <p className="font-semibold text-gray-800 text-sm leading-snug">{label}</p>
@@ -76,44 +63,44 @@ export default function Dashboard() {
   // Layout strutturato per ruolo
   const layouts = {
     admin: {
-      top: [
-        { icon: '⚙️', label: 'Impostazioni', path: '/settings', accent: 'top' },
+      operative: [
+        { icon: '✅', label: 'Approvazioni', path: '/approvals' },
+        { icon: '🔬', label: 'Neo Insight',  path: '/reports'   },
       ],
       anagrafiche: [
-        { icon: '👥', label: 'Utenti',                    path: '/users',                   accent: 'anagrafica' },
-        { icon: '📁', label: 'Progetti',                  path: '/projects',                accent: 'anagrafica' },
-        { icon: '📅', label: 'Calendario',                path: '/calendar',                accent: 'anagrafica' },
-        { icon: '🗓', label: 'Autorizzazioni Weekend',    path: '/weekend-authorizations',  accent: 'anagrafica' },
+        { icon: '👥', label: 'Utenti',                 path: '/users'                  },
+        { icon: '📁', label: 'Progetti',               path: '/projects'               },
+        { icon: '📅', label: 'Calendario',             path: '/calendar'               },
+        { icon: '🗓', label: 'Autorizzazioni Weekend', path: '/weekend-authorizations' },
       ],
-      operative: [
-        { icon: '✅', label: 'Approvazioni',   path: '/approvals', accent: 'operativa' },
-        { icon: '🔬', label: 'Neo Insight',   path: '/reports',   accent: 'operativa' },
+      setup: [
+        { icon: '⚙️', label: 'Impostazioni', path: '/settings' },
       ],
     },
     super_admin: {
-      top: [
-        { icon: '🏢', label: 'Organizzazioni', path: '/organizations', accent: 'top' },
+      operative: [
+        { icon: '🔬', label: 'Neo Insight', path: '/reports' },
       ],
       anagrafiche: [
-        { icon: '👥', label: 'Utenti',                    path: '/users',                   accent: 'anagrafica' },
-        { icon: '📁', label: 'Progetti',                  path: '/projects',                accent: 'anagrafica' },
-        { icon: '📅', label: 'Calendario',                path: '/calendar',                accent: 'anagrafica' },
-        { icon: '🗓', label: 'Autorizzazioni Weekend',    path: '/weekend-authorizations',  accent: 'anagrafica' },
+        { icon: '👥', label: 'Utenti',                 path: '/users'                  },
+        { icon: '📁', label: 'Progetti',               path: '/projects'               },
+        { icon: '📅', label: 'Calendario',             path: '/calendar'               },
+        { icon: '🗓', label: 'Autorizzazioni Weekend', path: '/weekend-authorizations' },
       ],
-      operative: [
-        { icon: '🔬', label: 'Neo Insight', path: '/reports', accent: 'operativa' },
+      setup: [
+        { icon: '🏢', label: 'Organizzazioni', path: '/organizations' },
       ],
     },
     manager: {
       operative: [
-        { icon: '✅', label: 'Approvazioni',        path: '/approvals',  accent: 'operativa' },
-        { icon: '⏱',  label: 'Il Mio Timesheet',   path: '/timesheet',  accent: 'operativa' },
-        { icon: '🔬', label: 'Neo Insight',        path: '/reports',    accent: 'operativa' },
+        { icon: '✅', label: 'Approvazioni',      path: '/approvals' },
+        { icon: '⏱',  label: 'Il Mio Timesheet', path: '/timesheet' },
+        { icon: '🔬', label: 'Neo Insight',       path: '/reports'   },
       ],
     },
     employee: {
       operative: [
-        { icon: '⏱', label: 'Il Mio Timesheet', path: '/timesheet', accent: 'operativa' },
+        { icon: '⏱', label: 'Il Mio Timesheet', path: '/timesheet' },
       ],
     },
   };
@@ -130,13 +117,16 @@ export default function Dashboard() {
         </h2>
         <p className="text-sm text-gray-400 mb-6">Seleziona una sezione per iniziare.</p>
 
-        {/* Card in evidenza (es. Impostazioni / Organizzazioni) */}
-        {layout.top && (
-          <div className="grid grid-cols-1 gap-4 mb-2">
-            {layout.top.map(item => (
-              <DashCard key={item.path} {...item} navigate={navigate} />
-            ))}
-          </div>
+        {/* Sezione Operative */}
+        {layout.operative && (
+          <>
+            <SectionDivider title="Operative" />
+            <div className="grid grid-cols-2 gap-4">
+              {layout.operative.map(item => (
+                <DashCard key={item.path} {...item} navigate={navigate} />
+              ))}
+            </div>
+          </>
         )}
 
         {/* Sezione Anagrafiche */}
@@ -151,12 +141,12 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* Sezione Operative */}
-        {layout.operative && (
+        {/* Sezione Setup */}
+        {layout.setup && (
           <>
-            <SectionDivider title="Operative" />
-            <div className="grid grid-cols-2 gap-4">
-              {layout.operative.map(item => (
+            <SectionDivider title="Setup" />
+            <div className="grid grid-cols-1 gap-4">
+              {layout.setup.map(item => (
                 <DashCard key={item.path} {...item} navigate={navigate} />
               ))}
             </div>
