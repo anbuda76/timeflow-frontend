@@ -470,12 +470,62 @@ function TabCostCenter() {
               Seleziona i filtri e clicca "Genera Report"
             </div>
           )}
-          {report && (
+          {report && (() => {
+              const totalBudget = report.projects?.reduce((s, p) => s + (p.budget_amount || 0), 0) ?? 0;
+              const totalCost   = (report.total_approved_cost || 0) + (report.total_pending_cost || 0);
+              const delta       = totalBudget > 0 ? totalBudget - totalCost : null;
+              const deltaPos    = delta != null && delta >= 0;
+              return (
             <>
-              <div className="grid grid-cols-2 gap-4 mb-3">
-                <KpiCard value={formatCurrency(report.total_approved_cost)} label="Costo approvato" color="border-green-500" textColor="text-green-600" small />
-                <KpiCard value={formatCurrency(report.total_pending_cost)}  label="Costo in attesa" color="border-amber-400" textColor="text-amber-500" small />
+              {/* KPI layout 3 colonne: Budget | Costi | Delta */}
+              <div className="grid grid-cols-3 gap-3 mb-6" style={{ gridTemplateRows: 'repeat(3, auto)' }}>
+
+                {/* Col sinistra — Totale Budget (span 3 righe) */}
+                <div className="row-span-3 bg-white rounded-xl shadow-sm border-t-4 border-blue-400 p-4 flex flex-col items-center justify-center text-center">
+                  <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalBudget)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Totale Budget</p>
+                </div>
+
+                {/* Col centrale — 3 KPI stacked */}
+                <div className="bg-white rounded-xl shadow-sm border-t-4 border-green-500 p-4 text-center">
+                  <p className="text-xl font-bold text-green-600">{formatCurrency(report.total_approved_cost)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Costo approvato</p>
+                </div>
+
+                {/* Col destra — Delta (span 3 righe) */}
+                <div className={`row-span-3 bg-white rounded-xl shadow-sm border-t-4 p-4 flex flex-col items-center justify-center text-center ${
+                  delta == null ? 'border-gray-300' : deltaPos ? 'border-green-400' : 'border-red-400'
+                }`}>
+                  {delta != null ? (
+                    <>
+                      <p className={`text-2xl font-bold ${deltaPos ? 'text-green-600' : 'text-red-600'}`}>
+                        {deltaPos ? '+' : ''}{formatCurrency(delta)}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Delta (Budget − Consuntivo)</p>
+                      <p className={`text-xs mt-1 font-medium ${deltaPos ? 'text-green-500' : 'text-red-500'}`}>
+                        {deltaPos ? '✓ Risparmio' : '⚠ Sforamento'}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-gray-400">—</p>
+                      <p className="text-xs text-gray-500 mt-1">Delta</p>
+                    </>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border-t-4 border-amber-400 p-4 text-center">
+                  <p className="text-xl font-bold text-amber-500">{formatCurrency(report.total_pending_cost)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Costo in attesa</p>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border-t-4 border-blue-300 p-4 text-center">
+                  <p className="text-xl font-bold text-blue-600">{formatCurrency(totalCost)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Totale Costo</p>
+                </div>
               </div>
+
+              {/* Copertura */}
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Copertura</span>
                 <div className="flex-1 h-px bg-gray-200" />
@@ -500,6 +550,7 @@ function TabCostCenter() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th className="px-3 py-3 text-center font-semibold text-gray-500">ID</th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-700">Progetto</th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
                         <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
@@ -512,6 +563,7 @@ function TabCostCenter() {
                     <tbody>
                       {report.projects.map(p => (
                         <tr key={p.project_id} className="border-b hover:bg-gray-50">
+                          <td className="px-3 py-3 text-center text-xs text-gray-400 font-mono">{p.project_id}</td>
                           <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
                           <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
                           <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
@@ -574,7 +626,8 @@ function TabCostCenter() {
                 </div>
               )}
             </>
-          )}
+          );
+        })()}
         </>
       )}
 
