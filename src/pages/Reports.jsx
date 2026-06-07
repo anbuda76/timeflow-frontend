@@ -801,4 +801,21 @@ export default function Reports() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-2.5 text-sm font-medium rounded-t-lg t
+              className={`px-6 py-2.5 text-sm font-medium rounded-t-lg transition-all ${
+                activeTab === tab.id
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'timesheet'   && <TabTimesheet />}
+        {activeTab === 'cost-center' && <TabCostCenter />}
+
+      </div>
+    </div>
+  );
+}
