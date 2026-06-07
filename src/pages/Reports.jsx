@@ -484,23 +484,33 @@ function TabCostCenter() {
               const deltaPos    = delta != null && delta >= 0;
               return (
             <>
-              {/* KPI layout 3 colonne: Budget | Costi | Delta */}
-              <div className="grid grid-cols-3 gap-3 mb-6" style={{ gridTemplateRows: 'repeat(3, auto)' }}>
+              {/* KPI: 3 box uguali */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
 
-                {/* Col sinistra — Totale Budget (span 3 righe) */}
-                <div className="row-span-3 bg-white rounded-xl shadow-sm border-t-4 border-blue-400 p-4 flex flex-col items-center justify-center text-center">
+                {/* Totale Budget */}
+                <div className="bg-white rounded-xl shadow-sm border-t-4 border-blue-400 p-5 flex flex-col items-center justify-center text-center">
                   <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalBudget)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Totale Budget</p>
+                  <p className="text-sm text-gray-500 mt-1 font-medium">Totale Budget</p>
                 </div>
 
-                {/* Col centrale — 3 KPI stacked */}
-                <div className="bg-white rounded-xl shadow-sm border-t-4 border-green-500 p-4 text-center">
-                  <p className="text-xl font-bold text-green-600">{formatCurrency(report.total_approved_cost)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Costo approvato</p>
+                {/* Totale Costo con sub-label */}
+                <div className="bg-white rounded-xl shadow-sm border-t-4 border-indigo-400 p-5 flex flex-col items-center justify-center text-center">
+                  <p className="text-2xl font-bold text-indigo-600">{formatCurrency(totalCost)}</p>
+                  <p className="text-sm text-gray-500 mt-1 font-medium">Totale Costo</p>
+                  <div className="mt-2 flex flex-col gap-0.5 text-xs w-full">
+                    <div className="flex justify-between px-2 py-0.5 bg-green-50 rounded text-green-700">
+                      <span>Approvato</span>
+                      <span className="font-medium">{formatCurrency(report.total_approved_cost)}</span>
+                    </div>
+                    <div className="flex justify-between px-2 py-0.5 bg-amber-50 rounded text-amber-700">
+                      <span>In attesa</span>
+                      <span className="font-medium">{formatCurrency(report.total_pending_cost)}</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Col destra — Delta (span 3 righe) */}
-                <div className={`row-span-3 bg-white rounded-xl shadow-sm border-t-4 p-4 flex flex-col items-center justify-center text-center ${
+                {/* Delta */}
+                <div className={`bg-white rounded-xl shadow-sm border-t-4 p-5 flex flex-col items-center justify-center text-center ${
                   delta == null ? 'border-gray-300' : deltaPos ? 'border-green-400' : 'border-red-400'
                 }`}>
                   {delta != null ? (
@@ -508,27 +518,17 @@ function TabCostCenter() {
                       <p className={`text-2xl font-bold ${deltaPos ? 'text-green-600' : 'text-red-600'}`}>
                         {deltaPos ? '+' : ''}{formatCurrency(delta)}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">Delta (Budget − Consuntivo)</p>
-                      <p className={`text-xs mt-1 font-medium ${deltaPos ? 'text-green-500' : 'text-red-500'}`}>
-                        {deltaPos ? '✓ Risparmio' : '⚠ Sforamento'}
+                      <p className={`text-sm font-semibold mt-1 ${deltaPos ? 'text-green-600' : 'text-red-600'}`}>
+                        {deltaPos ? '✓ Margine' : '⚠ Perdita'}
                       </p>
+                      <p className="text-xs text-gray-400 mt-0.5">Budget − Consuntivo</p>
                     </>
                   ) : (
                     <>
                       <p className="text-2xl font-bold text-gray-400">—</p>
-                      <p className="text-xs text-gray-500 mt-1">Delta</p>
+                      <p className="text-sm text-gray-500 mt-1">Delta</p>
                     </>
                   )}
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm border-t-4 border-amber-400 p-4 text-center">
-                  <p className="text-xl font-bold text-amber-500">{formatCurrency(report.total_pending_cost)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Costo in attesa</p>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm border-t-4 border-blue-300 p-4 text-center">
-                  <p className="text-xl font-bold text-blue-600">{formatCurrency(totalCost)}</p>
-                  <p className="text-xs text-gray-500 mt-1">Totale Costo</p>
                 </div>
               </div>
 
@@ -648,21 +648,44 @@ function TabCostCenter() {
           )}
           {trend && trend.length > 0 && (
             <>
-              {/* Grafico aggregato totale progetti */}
+              {/* Grafico: tutte le commesse — Budget (tratteggiato) vs Costi (solido) per progetto */}
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato — Totale progetti ({year})</h2>
-                <p className="text-xs text-gray-400 mb-4">Budget cumulato totale vs Costo cumulato totale (tutti i progetti)</p>
-                <ResponsiveContainer width="100%" height={320}>
-                  <LineChart data={aggTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato — Tutte le commesse ({year})</h2>
+                <p className="text-xs text-gray-400 mb-4">Tratteggiato = Budget · Continuo = Costi — colori per progetto</p>
+                <ResponsiveContainer width="100%" height={360}>
+                  <LineChart data={trendMonthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(val) => `€${parseFloat(val).toLocaleString('it-IT')}`} />
-                    <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: 8 }} />
-                    <Line type="monotone" dataKey="Budget cumulato" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                    <Line type="monotone" dataKey="Costo cumulato"  stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} />
+                    <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
+                    <Legend
+                      verticalAlign="top" align="right"
+                      payload={[
+                        { value: 'Budget', type: 'line', color: '#94a3b8', payload: { strokeDasharray: '5 5', strokeWidth: 1.5 } },
+                        { value: 'Costi',  type: 'line', color: '#64748b', payload: { strokeWidth: 2 } },
+                      ]}
+                    />
+                    {trend.map((p, i) => ([
+                      <Line key={`b-${p.project_id}`} type="monotone"
+                        dataKey={`${p.project_name} target`}
+                        stroke={COLORS[i % COLORS.length]} strokeWidth={1.5} strokeDasharray="5 5"
+                        dot={false} legendType="none" name={`${p.project_name} budget`} />,
+                      <Line key={`c-${p.project_id}`} type="monotone"
+                        dataKey={`${p.project_name} totale`}
+                        stroke={COLORS[i % COLORS.length]} strokeWidth={2.5}
+                        dot={{ r: 3 }} legendType="none" name={`${p.project_name} costi`} />,
+                    ]))}
                   </LineChart>
                 </ResponsiveContainer>
+                {/* Legenda progetti */}
+                <div className="flex flex-wrap gap-3 mt-3 px-2">
+                  {trend.map((p, i) => (
+                    <span key={p.project_id} className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <span className="w-3 h-3 rounded-full inline-block" style={{ background: COLORS[i % COLORS.length] }} />
+                      {p.project_name}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {/* Filtro progetto per il dettaglio */}
@@ -795,7 +818,6 @@ export default function Reports() {
           ))}
         </div>
 
-        {activeTab === 'timesheet'   && <TabTimesheet />}
         {activeTab === 'timesheet'   && <TabTimesheet />}
         {activeTab === 'cost-center' && <TabCostCenter />}
 
