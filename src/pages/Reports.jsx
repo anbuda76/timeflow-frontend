@@ -352,7 +352,12 @@ function TabCostCenter() {
         const params = { year };
         if (month) params.month = month;
         if (selectedProject) params.project_id = selectedProject;
-        setReport(await getCostReport(params));
+        const [rep, trendData] = await Promise.all([
+          getCostReport(params),
+          getMonthlyTrend({ year }),
+        ]);
+        setReport(rep);
+        setTrend(trendData);
       } else {
         // Mese: sempre tutti i progetti, filtro usato solo per il dettaglio
         setTrend(await getMonthlyTrend({ year }));
@@ -387,11 +392,11 @@ function TabCostCenter() {
     return point;
   });
 
-  const trendMonthlyHours = visibleMonths.map((m, i) => {
+  const trendMonthlyCosts = visibleMonths.map((m, i) => {
     const point = { month: m };
     trend?.forEach(p => {
-      point[`${p.project_name} appr.`] = p.monthly[i]?.approved_hours || 0;
-      point[`${p.project_name} att.`]  = p.monthly[i]?.pending_hours  || 0;
+      point[`${p.project_name} appr.`] = p.monthly[i]?.approved_cost || 0;
+      point[`${p.project_name} att.`]  = p.monthly[i]?.pending_cost  || 0;
     });
     return point;
   });
@@ -484,6 +489,12 @@ function TabCostCenter() {
               const deltaPos    = delta != null && delta >= 0;
               return (
             <>
+              {/* Copertura KPI (in cima) */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <KpiCard value={report.projects?.length || 0} label="Progetti"         color="border-gray-300" textColor="text-gray-700" />
+                <KpiCard value={report.users?.length || 0}    label="Utenti coinvolti" color="border-gray-300" textColor="text-gray-700" />
+              </div>
+
               {/* KPI: 3 box uguali */}
               <div className="grid grid-cols-3 gap-4 mb-6">
 
@@ -530,16 +541,6 @@ function TabCostCenter() {
                     </>
                   )}
                 </div>
-              </div>
-
-              {/* Copertura */}
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Copertura</span>
-                <div className="flex-1 h-px bg-gray-200" />
-              </div>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <KpiCard value={report.projects?.length || 0} label="Progetti"         color="border-gray-300" textColor="text-gray-700" />
-                <KpiCard value={report.users?.length || 0}    label="Utenti coinvolti" color="border-gray-300" textColor="text-gray-700" />
               </div>
 
               {report.month && (
@@ -616,7 +617,7 @@ function TabCostCenter() {
               )}
 
               {report.projects?.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm p-4">
+                <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
                   <h2 className="font-semibold text-gray-800 mb-4">💶 Budget vs Consuntivo (€)</h2>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={barDataAmount} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
@@ -630,6 +631,36 @@ function TabCostCenter() {
                       <Bar dataKey="Costo in attesa" fill="#f59e0b" stackId="cons" />
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Andamento cumulato (aggregato) */}
+              {trend && trend.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm p-4 mb-2">
+                  <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato — Tutti i progetti ({year})</h2>
+                  <p className="text-xs text-gray-400 mb-4">Somma cumulata mensile di budget e costi su tutti i progetti</p>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={aggTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
+                      <Line type="monotone" dataKey="Budget cumulato"
+                        stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                      <Line type="monotone" dataKey="Costo cumulato"
+                        stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div className="flex gap-5 mt-2 px-2 text-xs text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 3"/></svg>
+                      Budget cumulato
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#3b82f6" strokeWidth="2.5"/></svg>
+                      Costo cumulato
+                    </span>
+                  </div>
                 </div>
               )}
             </>
@@ -648,36 +679,6 @@ function TabCostCenter() {
           )}
           {trend && trend.length > 0 && (
             <>
-              {/* Grafico aggregato: Budget cumulato vs Costi cumulati (somma tutti i progetti) */}
-              <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato — Tutti i progetti ({year})</h2>
-                <p className="text-xs text-gray-400 mb-4">Somma cumulata mensile di budget e costi su tutti i progetti</p>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={aggTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
-                    <Line type="monotone" dataKey="Budget cumulato"
-                      stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 3"
-                      dot={false} />
-                    <Line type="monotone" dataKey="Costo cumulato"
-                      stroke="#3b82f6" strokeWidth={2.5}
-                      dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-                <div className="flex gap-5 mt-2 px-2 text-xs text-gray-500">
-                  <span className="flex items-center gap-1.5">
-                    <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 3"/></svg>
-                    Budget cumulato
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#3b82f6" strokeWidth="2.5"/></svg>
-                    Costo cumulato
-                  </span>
-                </div>
-              </div>
-
               {/* Filtro progetto per il dettaglio */}
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex items-end gap-4">
                 <div>
@@ -699,14 +700,14 @@ function TabCostCenter() {
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                <h2 className="font-semibold text-gray-800 mb-1">⏱ Ore mensili per progetto</h2>
-                <p className="text-xs text-gray-400 mb-4">Verde = approvate · Arancione = in attesa</p>
+                <h2 className="font-semibold text-gray-800 mb-1">💶 Costi € mensili per progetto</h2>
+                <p className="text-xs text-gray-400 mb-4">Verde = approvati · Arancione = in attesa — colori per progetto</p>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={trendMonthlyHours} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <BarChart data={trendMonthlyCosts} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
                     {trend.map((p, i) => ([
                       <Bar key={`${p.project_id}-appr`} dataKey={`${p.project_name} appr.`}
                         fill={COLORS[i % COLORS.length]} stackId={`p${p.project_id}`} />,
@@ -715,6 +716,14 @@ function TabCostCenter() {
                     ]))}
                   </BarChart>
                 </ResponsiveContainer>
+                <div className="flex flex-wrap gap-3 mt-2 px-2">
+                  {trend.map((p, i) => (
+                    <span key={p.project_id} className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <span className="w-3 h-3 rounded-full inline-block" style={{ background: COLORS[i % COLORS.length] }} />
+                      {p.project_name}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {detailTrend.map(p => (
@@ -729,8 +738,6 @@ function TabCostCenter() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-2 text-left font-semibold text-gray-700">Mese</th>
-                        <th className="px-3 py-2 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Ore appr.</th>
-                        <th className="px-3 py-2 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Ore att.</th>
                         <th className="px-3 py-2 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Costo appr.</th>
                         <th className="px-3 py-2 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Costo att.</th>
                         <th className="px-4 py-2 text-right font-semibold text-gray-700">Cum. approvato</th>
@@ -747,10 +754,8 @@ function TabCostCenter() {
                               {MONTHS[m.month - 1]}
                               {noData && <span className="text-xs text-gray-400 ml-1">nessuna attività</span>}
                             </td>
-                            <td className="px-3 py-2 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{m.approved_hours > 0 ? `${m.approved_hours}h` : '—'}</td>
-                            <td className="px-3 py-2 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{m.pending_hours > 0 ? `${m.pending_hours}h` : '—'}</td>
-                            <td className="px-3 py-2 text-right text-green-600 bg-green-50 border-x border-green-100">{m.approved_cost > 0 ? formatCurrency(m.approved_cost) : '—'}</td>
-                            <td className="px-3 py-2 text-right text-amber-600 bg-amber-50 border-x border-amber-100">{m.pending_cost > 0 ? formatCurrency(m.pending_cost) : '—'}</td>
+                            <td className="px-3 py-2 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{m.approved_cost > 0 ? formatCurrency(m.approved_cost) : '—'}</td>
+                            <td className="px-3 py-2 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{m.pending_cost > 0 ? formatCurrency(m.pending_cost) : '—'}</td>
                             <td className="px-4 py-2 text-right font-medium text-green-600">{noData ? '—' : formatCurrency(m.cumulative_approved)}</td>
                             <td className="px-4 py-2 text-right font-medium text-blue-600">{noData ? '—' : formatCurrency(m.cumulative_cost)}</td>
                             <td className="px-4 py-2 text-right text-gray-500">{formatCurrency(m.budget_target)}</td>
@@ -796,21 +801,4 @@ export default function Reports() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-2.5 text-sm font-medium rounded-t-lg transition border-b-2 -mb-px ${
-                activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600 bg-white'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === 'timesheet'   && <TabTimesheet />}
-        {activeTab === 'cost-center' && <TabCostCenter />}
-
-      </div>
-    </div>
-  );
-}
+              className={`px-6 py-2.5 text-sm font-medium rounded-t-lg t
