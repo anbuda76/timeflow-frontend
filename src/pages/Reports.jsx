@@ -707,7 +707,6 @@ function TabCostCenter() {
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Legend />
                     {trend.map((p, i) => ([
                       <Bar key={`${p.project_id}-appr`} dataKey={`${p.project_name} appr.`}
                         fill={COLORS[i % COLORS.length]} stackId={`p${p.project_id}`} />,
