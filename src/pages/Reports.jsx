@@ -658,7 +658,6 @@ function TabCostCenter() {
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
                     <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
-                    <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: 8 }} />
                     <Line type="monotone" dataKey="Budget cumulato"
                       stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 3"
                       dot={false} />
@@ -667,6 +666,16 @@ function TabCostCenter() {
                       dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
+                <div className="flex gap-5 mt-2 px-2 text-xs text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 3"/></svg>
+                    Budget cumulato
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#3b82f6" strokeWidth="2.5"/></svg>
+                    Costo cumulato
+                  </span>
+                </div>
               </div>
 
               {/* Filtro progetto per il dettaglio */}
