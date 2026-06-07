@@ -348,7 +348,7 @@ function TabCostCenter() {
   const loadReport = async () => {
     setLoading(true);
     try {
-      if (costTab === 'anno') {
+      if (['anno', 'progetti', 'utenti'].includes(costTab)) {
         const params = { year };
         if (month) params.month = month;
         if (selectedProject) params.project_id = selectedProject;
@@ -428,18 +428,23 @@ function TabCostCenter() {
       </div>
 
       {/* Sub-tab */}
-      <div className="flex gap-2 mb-6">
-        {['anno', 'mese'].map(tab => (
+      <div className="flex flex-wrap gap-2 mb-6">
+        {[
+          { id: 'anno',      label: '📅 Snapshot Costi'       },
+          { id: 'progetti',  label: '📁 Analisi per Progetto' },
+          { id: 'utenti',    label: '👥 Analisi per Utente'   },
+          { id: 'mese',      label: '📈 Andamento Mensile'    },
+        ].map(tab => (
           <button
-            key={tab}
-            onClick={() => { setCostTab(tab); setReport(null); setTrend(null); }}
-            className={`px-6 py-2 rounded-lg text-sm font-medium transition ${
-              costTab === tab
+            key={tab.id}
+            onClick={() => { setCostTab(tab.id); setReport(null); setTrend(null); }}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition ${
+              costTab === tab.id
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
             }`}
           >
-            {tab === 'anno' ? '📅 Snapshot Costi (anno / mese)' : '📈 Andamento Mensile (cumulato)'}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -447,7 +452,7 @@ function TabCostCenter() {
       {/* Filtri */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
         <SelectYear value={year} onChange={v => { setYear(v); setReport(null); setTrend(null); }} />
-        {costTab === 'anno' && (
+        {['anno', 'progetti', 'utenti'].includes(costTab) && (
           <>
             <SelectMonth value={month} onChange={v => { setMonth(v); setReport(null); }} optional />
             <div>
@@ -551,72 +556,6 @@ function TabCostCenter() {
               )}
 
               {report.projects?.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm mb-6 overflow-x-auto">
-                  <div className="px-4 py-3 border-b">
-                    <h2 className="font-semibold text-gray-800">Analisi per Progetto</h2>
-                  </div>
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-3 text-center font-semibold text-gray-500">ID</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Progetto</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
-                        <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Appr. €</th>
-                        <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Att. €</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {report.projects.map(p => (
-                        <tr key={p.project_id} className="border-b hover:bg-gray-50">
-                          <td className="px-3 py-3 text-center text-xs text-gray-400 font-mono">{p.project_id}</td>
-                          <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
-                          <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
-                          <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
-                          <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
-                          <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
-                          <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
-                          <td className="px-4 py-3 text-right"><DeltaBadge value={p.delta_amount} pct={p.delta_amount_pct} /></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {report.users?.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
-                  <div className="px-4 py-3 border-b">
-                    <h2 className="font-semibold text-gray-800">Analisi per Utente</h2>
-                  </div>
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Utente</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Costo/h</th>
-                        <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Costo appr.</th>
-                        <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Costo att.</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {report.users.map(u => (
-                        <tr key={u.user_id} className="border-b hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-gray-800">{u.user_name}</td>
-                          <td className="px-4 py-3 text-right text-gray-500">{u.hourly_rate ? `€${u.hourly_rate}/h` : '—'}</td>
-                          <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{u.approved_cost > 0 ? formatCurrency(u.approved_cost) : '—'}</td>
-                          <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{u.pending_cost > 0 ? formatCurrency(u.pending_cost) : '—'}</td>
-                          <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(u.cost)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {report.projects?.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
                   <h2 className="font-semibold text-gray-800 mb-4">💶 Budget vs Consuntivo (€)</h2>
                   <ResponsiveContainer width="100%" height={300}>
@@ -666,6 +605,102 @@ function TabCostCenter() {
             </>
           );
         })()}
+        </>
+      )}
+
+      {/* SUB-TAB PROGETTI */}
+      {costTab === 'progetti' && (
+        <>
+          {!report && !loading && (
+            <div className="bg-white rounded-xl p-12 text-center text-gray-400">
+              Seleziona i filtri e clicca "Genera Report"
+            </div>
+          )}
+          {report && (
+            <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h2 className="font-semibold text-gray-800">📁 Analisi per Progetto</h2>
+                <span className="text-xs text-gray-400">{report.projects?.length || 0} progetti</span>
+              </div>
+              {report.projects?.length > 0 ? (
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-3 text-center font-semibold text-gray-500">ID</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Progetto</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
+                      <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Appr. €</th>
+                      <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Att. €</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.projects.map(p => (
+                      <tr key={p.project_id} className="border-b hover:bg-gray-50">
+                        <td className="px-3 py-3 text-center text-xs text-gray-400 font-mono">{p.project_id}</td>
+                        <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
+                        <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
+                        <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
+                        <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
+                        <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
+                        <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
+                        <td className="px-4 py-3 text-right"><DeltaBadge value={p.delta_amount} pct={p.delta_amount_pct} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-8 text-center text-gray-400">Nessun progetto nel periodo selezionato</div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* SUB-TAB UTENTI */}
+      {costTab === 'utenti' && (
+        <>
+          {!report && !loading && (
+            <div className="bg-white rounded-xl p-12 text-center text-gray-400">
+              Seleziona i filtri e clicca "Genera Report"
+            </div>
+          )}
+          {report && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h2 className="font-semibold text-gray-800">👥 Analisi per Utente</h2>
+                <span className="text-xs text-gray-400">{report.users?.length || 0} utenti</span>
+              </div>
+              {report.users?.length > 0 ? (
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Utente</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Costo/h</th>
+                      <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Costo appr.</th>
+                      <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Costo att.</th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.users.map(u => (
+                      <tr key={u.user_id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-800">{u.user_name}</td>
+                        <td className="px-4 py-3 text-right text-gray-500">{u.hourly_rate ? `€${u.hourly_rate}/h` : '—'}</td>
+                        <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{u.approved_cost > 0 ? formatCurrency(u.approved_cost) : '—'}</td>
+                        <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{u.pending_cost > 0 ? formatCurrency(u.pending_cost) : '—'}</td>
+                        <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(u.cost)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-8 text-center text-gray-400">Nessun utente nel periodo selezionato</div>
+              )}
+            </div>
+          )}
         </>
       )}
 
