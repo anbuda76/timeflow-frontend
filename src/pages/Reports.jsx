@@ -371,13 +371,6 @@ function TabCostCenter() {
     }
   };
 
-  const barDataHours = report?.projects?.map(p => ({
-    name: p.project_name,
-    'Ore approvate': p.approved_hours,
-    'Ore in attesa': p.pending_hours,
-    'Budget h': p.budget_hours || 0,
-  })) || [];
-
   const barDataAmount = report?.projects?.map(p => ({
     name: p.project_name,
     'Costo approvato': p.approved_amount,
@@ -479,11 +472,15 @@ function TabCostCenter() {
           )}
           {report && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                <KpiCard value={`${report.total_approved_hours}h`} label="Ore approvate"    color="border-green-500" textColor="text-green-600" />
-                <KpiCard value={`${report.total_pending_hours}h`}  label="Ore in attesa"    color="border-amber-400" textColor="text-amber-500" />
+              <div className="grid grid-cols-2 gap-4 mb-3">
                 <KpiCard value={formatCurrency(report.total_approved_cost)} label="Costo approvato" color="border-green-500" textColor="text-green-600" small />
                 <KpiCard value={formatCurrency(report.total_pending_cost)}  label="Costo in attesa" color="border-amber-400" textColor="text-amber-500" small />
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">Copertura</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-6">
                 <KpiCard value={report.projects?.length || 0} label="Progetti"         color="border-gray-300" textColor="text-gray-700" />
                 <KpiCard value={report.users?.length || 0}    label="Utenti coinvolti" color="border-gray-300" textColor="text-gray-700" />
               </div>
@@ -503,22 +500,13 @@ function TabCostCenter() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700" rowSpan={2}>Progetto</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700" rowSpan={2}>Cliente</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700" rowSpan={2}>Budget €</th>
-                        <th className="px-3 py-2 text-center font-semibold text-gray-600 bg-green-50 border-x border-green-100" colSpan={2}>Approvato</th>
-                        <th className="px-3 py-2 text-center font-semibold text-gray-600 bg-amber-50 border-x border-amber-100" colSpan={2}>In attesa</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700" rowSpan={2}>Totale €</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700" rowSpan={2}>Delta €</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700" rowSpan={2}>Budget h</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700" rowSpan={2}>Totale h</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700" rowSpan={2}>Delta h</th>
-                      </tr>
-                      <tr>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-green-700 bg-green-50 border-l border-green-100">h</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-green-700 bg-green-50 border-r border-green-100">€</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-amber-600 bg-amber-50 border-l border-amber-100">h</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-amber-600 bg-amber-50 border-r border-amber-100">€</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Progetto</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
+                        <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Appr. €</th>
+                        <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Att. €</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -527,15 +515,10 @@ function TabCostCenter() {
                           <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
                           <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
                           <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
-                          <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-l border-green-100">{p.approved_hours > 0 ? `${p.approved_hours}h` : '—'}</td>
-                          <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-r border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
-                          <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-l border-amber-100">{p.pending_hours > 0 ? `${p.pending_hours}h` : '—'}</td>
-                          <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-r border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
+                          <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
+                          <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
                           <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
                           <td className="px-4 py-3 text-right"><DeltaBadge value={p.delta_amount} pct={p.delta_amount_pct} /></td>
-                          <td className="px-4 py-3 text-right text-gray-600">{p.budget_hours ? `${p.budget_hours}h` : '—'}</td>
-                          <td className="px-4 py-3 text-right font-medium text-blue-600">{p.consuntivo_hours}h</td>
-                          <td className="px-4 py-3 text-right"><DeltaBadge value={p.delta_hours} pct={p.delta_hours_pct} /></td>
                         </tr>
                       ))}
                     </tbody>
@@ -553,11 +536,8 @@ function TabCostCenter() {
                       <tr>
                         <th className="px-4 py-3 text-left font-semibold text-gray-700">Utente</th>
                         <th className="px-4 py-3 text-right font-semibold text-gray-700">Costo/h</th>
-                        <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Ore appr.</th>
                         <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Costo appr.</th>
-                        <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Ore att.</th>
                         <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Costo att.</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale h</th>
                         <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
                       </tr>
                     </thead>
@@ -566,11 +546,8 @@ function TabCostCenter() {
                         <tr key={u.user_id} className="border-b hover:bg-gray-50">
                           <td className="px-4 py-3 font-medium text-gray-800">{u.user_name}</td>
                           <td className="px-4 py-3 text-right text-gray-500">{u.hourly_rate ? `€${u.hourly_rate}/h` : '—'}</td>
-                          <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{u.approved_hours > 0 ? `${u.approved_hours}h` : '—'}</td>
                           <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{u.approved_cost > 0 ? formatCurrency(u.approved_cost) : '—'}</td>
-                          <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{u.pending_hours > 0 ? `${u.pending_hours}h` : '—'}</td>
                           <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{u.pending_cost > 0 ? formatCurrency(u.pending_cost) : '—'}</td>
-                          <td className="px-4 py-3 text-right text-blue-600 font-medium">{u.hours}h</td>
                           <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(u.cost)}</td>
                         </tr>
                       ))}
@@ -580,37 +557,20 @@ function TabCostCenter() {
               )}
 
               {report.projects?.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-xl shadow-sm p-4">
-                    <h2 className="font-semibold text-gray-800 mb-4">📊 Budget vs Consuntivo (ore)</h2>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={barDataHours} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" angle={-30} textAnchor="end" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="Budget h"      fill="#94a3b8" />
-                        <Bar dataKey="Ore approvate" fill="#22c55e" stackId="cons" />
-                        <Bar dataKey="Ore in attesa" fill="#f59e0b" stackId="cons" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-sm p-4">
-                    <h2 className="font-semibold text-gray-800 mb-4">💶 Budget vs Consuntivo (€)</h2>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={barDataAmount} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" angle={-30} textAnchor="end" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} />
-                        <Tooltip formatter={(val) => `€${val.toLocaleString('it-IT')}`} />
-                        <Legend />
-                        <Bar dataKey="Budget €"        fill="#94a3b8" />
-                        <Bar dataKey="Costo approvato" fill="#22c55e" stackId="cons" />
-                        <Bar dataKey="Costo in attesa" fill="#f59e0b" stackId="cons" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                <div className="bg-white rounded-xl shadow-sm p-4">
+                  <h2 className="font-semibold text-gray-800 mb-4">💶 Budget vs Consuntivo (€)</h2>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={barDataAmount} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-30} textAnchor="end" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(val) => `€${val.toLocaleString('it-IT')}`} />
+                      <Legend />
+                      <Bar dataKey="Budget €"        fill="#94a3b8" />
+                      <Bar dataKey="Costo approvato" fill="#22c55e" stackId="cons" />
+                      <Bar dataKey="Costo in attesa" fill="#f59e0b" stackId="cons" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </>
