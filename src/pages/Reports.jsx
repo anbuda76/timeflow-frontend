@@ -345,12 +345,6 @@ function TabCostCenter() {
     getProjects().then(data => setProjects(data.filter(p => !p.is_system)));
   }, []);
 
-  useEffect(() => {
-    if (costTab === 'mese' && !selectedProject && projects.length > 0) {
-      setSelectedProject(projects[0].id);
-    }
-  }, [costTab, projects]);
-
   const loadReport = async () => {
     setLoading(true);
     try {
@@ -360,9 +354,8 @@ function TabCostCenter() {
         if (selectedProject) params.project_id = selectedProject;
         setReport(await getCostReport(params));
       } else {
-        const params = { year };
-        if (selectedProject) params.project_id = selectedProject;
-        setTrend(await getMonthlyTrend(params));
+        // Mese: sempre tutti i progetti, filtro usato solo per il dettaglio
+        setTrend(await getMonthlyTrend({ year }));
       }
     } catch (err) {
       console.error(err);
@@ -403,6 +396,18 @@ function TabCostCenter() {
     return point;
   });
 
+  // Grafico aggregato: somma tutti i progetti per mese
+  const aggTrendData = visibleMonths.map((m, i) => ({
+    month: m,
+    'Budget cumulato': parseFloat((trend?.reduce((s, p) => s + (p.monthly[i]?.budget_target || 0), 0) || 0).toFixed(2)),
+    'Costo cumulato':  parseFloat((trend?.reduce((s, p) => s + (p.monthly[i]?.cumulative_cost || 0), 0) || 0).toFixed(2)),
+  }));
+
+  // Dettaglio filtrato per progetto selezionato
+  const detailTrend = selectedProject
+    ? trend?.filter(p => p.project_id === selectedProject) ?? []
+    : trend ?? [];
+
   return (
     <div>
       {/* Legenda */}
@@ -438,24 +443,26 @@ function TabCostCenter() {
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
         <SelectYear value={year} onChange={v => { setYear(v); setReport(null); setTrend(null); }} />
         {costTab === 'anno' && (
-          <SelectMonth value={month} onChange={v => { setMonth(v); setReport(null); }} optional />
+          <>
+            <SelectMonth value={month} onChange={v => { setMonth(v); setReport(null); }} optional />
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Progetto <span className="text-gray-400">(opzionale)</span>
+              </label>
+              <select
+                value={selectedProject || ''}
+                onChange={e => setSelectedProject(e.target.value ? parseInt(e.target.value) : null)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Tutti i progetti</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          </>
         )}
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            Progetto {costTab === 'mese' ? <span className="text-red-500">*</span> : <span className="text-gray-400">(opzionale)</span>}
-          </label>
-          <select
-            value={selectedProject || ''}
-            onChange={e => setSelectedProject(e.target.value ? parseInt(e.target.value) : null)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {costTab === 'anno' && <option value="">Tutti i progetti</option>}
-            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
         <button
           onClick={loadReport}
-          disabled={loading || (costTab === 'mese' && !selectedProject)}
+          disabled={loading}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
         >
           {loading ? 'Carico…' : '🔍 Genera Report'}
@@ -617,7 +624,7 @@ function TabCostCenter() {
                       <XAxis dataKey="name" angle={-30} textAnchor="end" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(val) => `€${val.toLocaleString('it-IT')}`} />
-                      <Legend />
+                      <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: 8 }} />
                       <Bar dataKey="Budget €"        fill="#94a3b8" />
                       <Bar dataKey="Costo approvato" fill="#22c55e" stackId="cons" />
                       <Bar dataKey="Costo in attesa" fill="#f59e0b" stackId="cons" />
@@ -636,36 +643,46 @@ function TabCostCenter() {
         <>
           {!trend && !loading && (
             <div className="bg-white rounded-xl p-12 text-center text-gray-400">
-              Seleziona anno e progetto, poi clicca "Genera Report"
+              Seleziona anno e clicca "Genera Report"
             </div>
           )}
           {trend && trend.length > 0 && (
             <>
+              {/* Grafico aggregato totale progetti */}
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                <h2 className="font-semibold text-gray-800 mb-1">📈 Costo cumulato vs Budget target (mensile)</h2>
-                <p className="text-xs text-gray-400 mb-4">Linea continua = approvato · Tratteggiata = totale · Puntinata = target budget</p>
-                <ResponsiveContainer width="100%" height={350}>
-                  <LineChart data={trendMonthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato — Totale progetti ({year})</h2>
+                <p className="text-xs text-gray-400 mb-4">Budget cumulato totale vs Costo cumulato totale (tutti i progetti)</p>
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart data={aggTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(val) => val ? `€${parseFloat(val).toLocaleString('it-IT')}` : '—'} />
-                    <Legend />
-                    {trend.map((p, i) => (
-                      <Line key={`${p.project_id}-appr`} type="monotone" dataKey={`${p.project_name} approvato`}
-                        stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 4 }} />
-                    ))}
-                    {trend.map((p, i) => (
-                      <Line key={`${p.project_id}-tot`} type="monotone" dataKey={`${p.project_name} totale`}
-                        stroke={COLORS[i % COLORS.length]} strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
-                    ))}
-                    {trend.map((p, i) => p.budget_amount && (
-                      <Line key={`${p.project_id}-target`} type="monotone" dataKey={`${p.project_name} target`}
-                        stroke={COLORS[i % COLORS.length]} strokeWidth={2} strokeDasharray="5 5" dot={false}
-                        name={`${p.project_name} budget target`} />
-                    ))}
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(val) => `€${parseFloat(val).toLocaleString('it-IT')}`} />
+                    <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: 8 }} />
+                    <Line type="monotone" dataKey="Budget cumulato" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Line type="monotone" dataKey="Costo cumulato"  stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
+              </div>
+
+              {/* Filtro progetto per il dettaglio */}
+              <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex items-end gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Filtra dettaglio per progetto</label>
+                  <select
+                    value={selectedProject || ''}
+                    onChange={e => setSelectedProject(e.target.value ? parseInt(e.target.value) : null)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Tutti i progetti</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <p className="text-xs text-gray-400 pb-2">
+                  {selectedProject
+                    ? `Visualizzando: ${projects.find(p => p.id === selectedProject)?.name}`
+                    : `${trend.length} progetti nel periodo`}
+                </p>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
@@ -688,7 +705,7 @@ function TabCostCenter() {
                 </ResponsiveContainer>
               </div>
 
-              {trend.map(p => (
+              {detailTrend.map(p => (
                 <div key={p.project_id} className="bg-white rounded-xl shadow-sm mb-4 overflow-x-auto">
                   <div className="px-4 py-3 border-b flex justify-between items-center">
                     <h2 className="font-semibold text-gray-800">{p.project_name}</h2>
@@ -778,6 +795,7 @@ export default function Reports() {
           ))}
         </div>
 
+        {activeTab === 'timesheet'   && <TabTimesheet />}
         {activeTab === 'timesheet'   && <TabTimesheet />}
         {activeTab === 'cost-center' && <TabCostCenter />}
 
