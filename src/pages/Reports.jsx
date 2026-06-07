@@ -648,44 +648,25 @@ function TabCostCenter() {
           )}
           {trend && trend.length > 0 && (
             <>
-              {/* Grafico: tutte le commesse — Budget (tratteggiato) vs Costi (solido) per progetto */}
+              {/* Grafico aggregato: Budget cumulato vs Costi cumulati (somma tutti i progetti) */}
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato — Tutte le commesse ({year})</h2>
-                <p className="text-xs text-gray-400 mb-4">Tratteggiato = Budget · Continuo = Costi — colori per progetto</p>
-                <ResponsiveContainer width="100%" height={360}>
-                  <LineChart data={trendMonthlyData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato — Tutti i progetti ({year})</h2>
+                <p className="text-xs text-gray-400 mb-4">Somma cumulata mensile di budget e costi su tutti i progetti</p>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={aggTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
                     <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
-                    <Legend
-                      verticalAlign="top" align="right"
-                      payload={[
-                        { value: 'Budget', type: 'line', color: '#94a3b8', payload: { strokeDasharray: '5 5', strokeWidth: 1.5 } },
-                        { value: 'Costi',  type: 'line', color: '#64748b', payload: { strokeWidth: 2 } },
-                      ]}
-                    />
-                    {trend.map((p, i) => ([
-                      <Line key={`b-${p.project_id}`} type="monotone"
-                        dataKey={`${p.project_name} target`}
-                        stroke={COLORS[i % COLORS.length]} strokeWidth={1.5} strokeDasharray="5 5"
-                        dot={false} legendType="none" name={`${p.project_name} budget`} />,
-                      <Line key={`c-${p.project_id}`} type="monotone"
-                        dataKey={`${p.project_name} totale`}
-                        stroke={COLORS[i % COLORS.length]} strokeWidth={2.5}
-                        dot={{ r: 3 }} legendType="none" name={`${p.project_name} costi`} />,
-                    ]))}
+                    <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: 8 }} />
+                    <Line type="monotone" dataKey="Budget cumulato"
+                      stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 3"
+                      dot={false} />
+                    <Line type="monotone" dataKey="Costo cumulato"
+                      stroke="#3b82f6" strokeWidth={2.5}
+                      dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
-                {/* Legenda progetti */}
-                <div className="flex flex-wrap gap-3 mt-3 px-2">
-                  {trend.map((p, i) => (
-                    <span key={p.project_id} className="flex items-center gap-1.5 text-xs text-gray-600">
-                      <span className="w-3 h-3 rounded-full inline-block" style={{ background: COLORS[i % COLORS.length] }} />
-                      {p.project_name}
-                    </span>
-                  ))}
-                </div>
               </div>
 
               {/* Filtro progetto per il dettaglio */}
