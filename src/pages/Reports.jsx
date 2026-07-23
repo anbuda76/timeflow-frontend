@@ -340,6 +340,11 @@ function TabCostCenter() {
   const [report, setReport] = useState(null);
   const [trend, setTrend] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Filtri locali tab Progetti
+  const [projSearch, setProjSearch]         = useState('');
+  const [clientSearch, setClientSearch]     = useState('');
+  const [projDropOpen, setProjDropOpen]     = useState(false);
+  const [progettiYearAll, setProgettiYearAll] = useState(false);
 
   useEffect(() => {
     getProjects().then(data => setProjects(data.filter(p => !p.is_system)));
@@ -349,15 +354,41 @@ function TabCostCenter() {
     setLoading(true);
     try {
       if (['anno', 'progetti', 'utenti'].includes(costTab)) {
-        const params = { year };
-        if (month) params.month = month;
-        if (selectedProject) params.project_id = selectedProject;
-        const [rep, trendData] = await Promise.all([
-          getCostReport(params),
-          getMonthlyTrend({ year }),
-        ]);
-        setReport(rep);
-        setTrend(trendData);
+        if (costTab === 'progetti' && progettiYearAll) {
+          // Aggrega tutti gli anni
+          const base = {};
+          if (month) base.month = month;
+          if (selectedProject) base.project_id = selectedProject;
+          const results = await Promise.all(YEARS.map(y => getCostReport({ ...base, year: y })));
+          const pMap = {};
+          results.forEach(r => {
+            (r.projects || []).forEach(p => {
+              if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, budget_amount: 0, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0 };
+              pMap[p.project_id].budget_amount    += p.budget_amount    || 0;
+              pMap[p.project_id].approved_amount  += p.approved_amount  || 0;
+              pMap[p.project_id].pending_amount   += p.pending_amount   || 0;
+              pMap[p.project_id].consuntivo_amount+= p.consuntivo_amount|| 0;
+            });
+          });
+          const projects = Object.values(pMap).map(p => ({
+            ...p,
+            delta_amount: p.budget_amount > 0 ? p.budget_amount - p.consuntivo_amount : null,
+          }));
+          const totalAppr = projects.reduce((s, p) => s + p.approved_amount, 0);
+          const totalPend = projects.reduce((s, p) => s + p.pending_amount, 0);
+          setReport({ projects, users: [], total_approved_cost: totalAppr, total_pending_cost: totalPend });
+          setTrend(null);
+        } else {
+          const params = { year };
+          if (month) params.month = month;
+          if (selectedProject) params.project_id = selectedProject;
+          const [rep, trendData] = await Promise.all([
+            getCostReport(params),
+            getMonthlyTrend({ year }),
+          ]);
+          setReport(rep);
+          setTrend(trendData);
+        }
       } else {
         // Mese: sempre tutti i progetti, filtro usato solo per il dettaglio
         setTrend(await getMonthlyTrend({ year }));
@@ -451,7 +482,25 @@ function TabCostCenter() {
 
       {/* Filtri */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
-        <SelectYear value={year} onChange={v => { setYear(v); setReport(null); setTrend(null); }} />
+        {costTab === 'progetti' ? (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Anno</label>
+            <select
+              value={progettiYearAll ? 'all' : year}
+              onChange={e => {
+                if (e.target.value === 'all') { setProgettiYearAll(true); }
+                else { setProgettiYearAll(false); setYear(parseInt(e.target.value)); }
+                setReport(null); setTrend(null);
+              }}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tutti gli anni</option>
+              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        ) : (
+          <SelectYear value={year} onChange={v => { setYear(v); setReport(null); setTrend(null); }} />
+        )}
         {['anno', 'progetti', 'utenti'].includes(costTab) && (
           <>
             <SelectMonth value={month} onChange={v => { setMonth(v); setReport(null); }} optional />
@@ -616,46 +665,115 @@ function TabCostCenter() {
               Seleziona i filtri e clicca "Genera Report"
             </div>
           )}
-          {report && (
-            <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-              <div className="px-4 py-3 border-b flex items-center justify-between">
-                <h2 className="font-semibold text-gray-800">📁 Analisi per Progetto</h2>
-                <span className="text-xs text-gray-400">{report.projects?.length || 0} progetti</span>
-              </div>
-              {report.projects?.length > 0 ? (
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-3 text-center font-semibold text-gray-500">ID</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Progetto</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
-                      <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Appr. €</th>
-                      <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Att. €</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
-                      <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.projects.map(p => (
-                      <tr key={p.project_id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-3 text-center text-xs text-gray-400 font-mono">{p.project_id}</td>
-                        <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
-                        <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
-                        <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
-                        <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
-                        <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
-                        <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
-                        <td className="px-4 py-3 text-right"><DeltaBadge value={p.delta_amount} pct={p.delta_amount_pct} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="p-8 text-center text-gray-400">Nessun progetto nel periodo selezionato</div>
-              )}
-            </div>
-          )}
+          {report && (() => {
+            const clienti = [...new Set((report.projects || []).map(p => p.client_name).filter(Boolean))].sort();
+            const filteredProj = (report.projects || []).filter(p => {
+              const matchClient = !clientSearch || (p.client_name || '').toLowerCase().includes(clientSearch.toLowerCase());
+              const matchProj   = !projSearch   || (p.project_name || '').toLowerCase().includes(projSearch.toLowerCase());
+              return matchClient && matchProj;
+            });
+            const projSuggestions = projSearch
+              ? (report.projects || []).filter(p => (p.project_name || '').toLowerCase().includes(projSearch.toLowerCase())).slice(0, 8)
+              : [];
+            return (
+              <>
+                {/* Filtri inline */}
+                <div className="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-4 items-end">
+                  {/* Filtro Cliente */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Cliente</label>
+                    <input
+                      type="text"
+                      value={clientSearch}
+                      onChange={e => setClientSearch(e.target.value)}
+                      placeholder="Cerca cliente…"
+                      list="clienti-list"
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
+                    />
+                    <datalist id="clienti-list">
+                      {clienti.map(c => <option key={c} value={c} />)}
+                    </datalist>
+                  </div>
+                  {/* Filtro Progetto (combobox) */}
+                  <div className="relative">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Progetto</label>
+                    <input
+                      type="text"
+                      value={projSearch}
+                      onChange={e => { setProjSearch(e.target.value); setProjDropOpen(true); }}
+                      onFocus={() => setProjDropOpen(true)}
+                      onBlur={() => setTimeout(() => setProjDropOpen(false), 150)}
+                      placeholder="Cerca progetto…"
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                    />
+                    {projDropOpen && projSuggestions.length > 0 && (
+                      <div className="absolute z-20 left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg w-80 max-h-48 overflow-y-auto">
+                        {projSuggestions.map(p => (
+                          <div
+                            key={p.project_id}
+                            onMouseDown={() => { setProjSearch(p.project_name); setProjDropOpen(false); }}
+                            className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer truncate"
+                          >
+                            <span className="text-xs text-gray-400 mr-2">#{p.project_id}</span>{p.project_name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {(clientSearch || projSearch) && (
+                    <button
+                      onClick={() => { setClientSearch(''); setProjSearch(''); }}
+                      className="text-xs text-gray-400 hover:text-gray-600 pb-1"
+                    >
+                      ✕ Cancella filtri
+                    </button>
+                  )}
+                  <span className="text-xs text-gray-400 pb-2 ml-auto">
+                    {filteredProj.length} / {report.projects?.length || 0} progetti
+                  </span>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+                  <div className="px-4 py-3 border-b flex items-center justify-between">
+                    <h2 className="font-semibold text-gray-800">📁 Analisi per Progetto</h2>
+                    <span className="text-xs text-gray-400">{progettiYearAll ? 'Tutti gli anni' : year}</span>
+                  </div>
+                  {filteredProj.length > 0 ? (
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-3 text-center font-semibold text-gray-500">ID</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700">Progetto</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
+                          <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
+                          <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Appr. €</th>
+                          <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Att. €</th>
+                          <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
+                          <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProj.map(p => (
+                          <tr key={p.project_id} className="border-b hover:bg-gray-50">
+                            <td className="px-3 py-3 text-center text-xs text-gray-400 font-mono">{p.project_id}</td>
+                            <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
+                            <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
+                            <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
+                            <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
+                            <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
+                            <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
+                            <td className="px-4 py-3 text-right"><DeltaBadge value={p.delta_amount} pct={p.delta_amount_pct} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-8 text-center text-gray-400">Nessun risultato per i filtri selezionati</div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </>
       )}
 
