@@ -6,7 +6,7 @@ const BrandContext = createContext({
   org: null,
   primaryColor: '#1d4ed8',
   logoUrl: null,
-  orgName: 'TimeFlow',
+  orgName: 'NeoG',
   refreshBrand: () => {},
 });
 
@@ -32,7 +32,7 @@ export function BrandProvider({ children }) {
     org,
     primaryColor: org?.primary_color || '#1d4ed8',
     logoUrl: org?.logo_url || null,
-    orgName: org?.name || 'TimeFlow',
+    orgName: org?.name || 'NeoG',
     refreshBrand: fetchOrg,
   };
 

@@ -142,7 +142,7 @@ export default function Settings() {
               <img src={form.logo_url} alt="Logo" className="h-8 object-contain"
                 onError={e => { e.target.style.display = 'none'; }} />
             ) : (
-              <span className="text-white font-bold text-lg">⏱ {form.name || 'TimeFlow'}</span>
+              <span className="text-white font-bold text-lg">⏱ {form.name || 'NeoG'}</span>
             )}
             <span className="text-white opacity-60 text-sm ml-auto">Anteprima</span>
           </div>

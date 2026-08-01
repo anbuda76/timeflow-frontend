@@ -14,7 +14,7 @@ export const exportExcel = async (params) => {
   const url = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `timeflow_export_${params.year}_${String(params.month).padStart(2,'0')}.xlsx`);
+  link.setAttribute('download', `neog_export_${params.year}_${String(params.month).padStart(2,'0')}.xlsx`);
   document.body.appendChild(link);
   link.click();
   link.remove();
