@@ -750,7 +750,15 @@ function TabCostCenter() {
                             <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
                             <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
                             <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
-                            <td className="px-4 py-3 text-right"><DeltaBadge value={p.delta_amount} pct={p.delta_amount_pct} /></td>
+                            <td className="px-4 py-3 text-right">
+                              {p.delta_amount != null ? (
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  p.delta_amount >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                                }`}>
+                                  {p.delta_amount >= 0 ? '↑ ' : '↓ '}{formatCurrency(p.delta_amount)}
+                                </span>
+                              ) : <span className="text-gray-400">—</span>}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
