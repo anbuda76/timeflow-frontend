@@ -19,7 +19,10 @@ const isWeekend = (year, month, day) => {
 const padDate = (n) => String(n).padStart(2, '0');
 
 const getHoursPerDay = (contractType) => {
-  return String(contractType || 'full_time').toLowerCase() === 'part_time' ? 4 : 8;
+  const ct = String(contractType || 'full_time').toLowerCase();
+  if (ct === 'part_time') return 4;
+  if (ct === 'part_time_6h') return 6;
+  return 8;
 };
 
 export default function Timesheet() {
