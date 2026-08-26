@@ -363,8 +363,9 @@ function TabCostCenter() {
           const pMap = {};
           results.forEach(r => {
             (r.projects || []).forEach(p => {
-              if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, budget_amount: 0, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0 };
-              pMap[p.project_id].budget_amount    += p.budget_amount    || 0;
+              if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0 };
+              // budget_amount è annuale: teniamo il valore del progetto (non si somma per anno)
+              if (p.budget_amount) pMap[p.project_id].budget_amount = p.budget_amount;
               pMap[p.project_id].approved_amount  += p.approved_amount  || 0;
               pMap[p.project_id].pending_amount   += p.pending_amount   || 0;
               pMap[p.project_id].consuntivo_amount+= p.consuntivo_amount|| 0;
