@@ -20,3 +20,5 @@ export const getProjects = () =>
 
 export const getHolidays = (year) =>
   api.get('/holidays', { params: { year } }).then(r => r.data);
+export const reopenTimesheet = (id) =>
+  api.post(`/timesheets/${id}/reopen`).then(r => r.data);

@@ -34,6 +34,7 @@ export default function Timesheet() {
   const [holidays, setHolidays] = useState([]);
   const [weekendAuthorizations, setWeekendAuthorizations] = useState([]);
   const [entries, setEntries] = useState({});
+  const [overtimeByDay, setOvertimeByDay] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -83,14 +84,21 @@ export default function Timesheet() {
         const full = await getTimesheet(allTimesheets[0].id);
         setTimesheet(full);
         const map = {};
+        const otMap = {};
         full.entries.forEach(e => {
           const day = parseInt(e.entry_date.split('-')[2]);
-          map[`${e.project_id}-${day}`] = e.hours;
+          if (e.is_overtime) {
+            otMap[day] = (otMap[day] || 0) + e.hours;
+          } else {
+            map[`${e.project_id}-${day}`] = e.hours;
+          }
         });
         setEntries(map);
+        setOvertimeByDay(otMap);
       } else {
         setTimesheet(null);
         setEntries({});
+        setOvertimeByDay({});
       }
     } catch (err) {
       console.error(err);
@@ -500,6 +508,29 @@ export default function Timesheet() {
                   </td>
                 </tr>
               </tfoot>
+
+              {/* Riga Straordinario (read-only, calcolata automaticamente) */}
+              {Object.keys(overtimeByDay).length > 0 && (
+                <tbody>
+                  <tr className="border-t-2 border-amber-300 bg-amber-50">
+                    <td className="sticky left-0 z-10 bg-amber-50 px-4 py-2 font-medium text-amber-700 w-40 min-w-[10rem] max-w-[10rem]">
+                      —
+                    </td>
+                    <td className="sticky left-40 bg-amber-50 px-4 py-2 font-semibold text-amber-700 z-10 w-64 min-w-[16rem] max-w-[16rem] border-r border-amber-200 flex items-center gap-2">
+                      ⏱ Straordinario
+                      <span className="text-xs font-normal text-amber-500">(automatico)</span>
+                    </td>
+                    {days.map(day => (
+                      <td key={day} className="px-1 py-2 text-center text-amber-700 font-medium text-sm">
+                        {overtimeByDay[day] ? overtimeByDay[day] : ''}
+                      </td>
+                    ))}
+                    <td className="px-4 py-2 text-center font-bold text-amber-700">
+                      {Object.values(overtimeByDay).reduce((s,h) => s+h, 0)}h
+                    </td>
+                  </tr>
+                </tbody>
+              )}
             </table>
             </div>
           </div>

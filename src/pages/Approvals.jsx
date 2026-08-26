@@ -1,6 +1,7 @@
 import api from '../api/client';
 import { useState, useEffect } from 'react';
 import { getTimesheet, reviewTimesheet } from '../api/approvals';
+import { reopenTimesheet } from '../api/timesheets';
 import { getUsers } from '../api/users';
 import { getProjects } from '../api/projects';
 import AppHeader from '../components/AppHeader';
@@ -143,6 +144,17 @@ export default function Approvals() {
       <p className="text-gray-500">Caricamento...</p>
     </div>
   );
+
+  const handleReopen = async (tsId) => {
+    if (!window.confirm('Riapri questo timesheet? Tornerà in stato bozza e l\'utente potrà modificarlo.')) return;
+    try {
+      await reopenTimesheet(tsId);
+      setSelected(null);
+      loadData();
+    } catch (e) {
+      alert(e?.response?.data?.detail || 'Errore nel riaprire il timesheet');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -368,6 +380,17 @@ export default function Approvals() {
                       className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm hover:bg-red-600 disabled:opacity-50"
                     >
                       Rifiuta
+                    </button>
+                  </div>
+                )}
+                {selectedTs.status === 'approved' && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleReopen(selectedTs.id)}
+                      disabled={saving}
+                      className="flex-1 bg-amber-500 text-white py-2 rounded-lg text-sm hover:bg-amber-600 disabled:opacity-50"
+                    >
+                      🔓 Riapri per modifiche
                     </button>
                   </div>
                 )}

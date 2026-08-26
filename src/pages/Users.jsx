@@ -11,8 +11,9 @@ const ROLE_COLORS = {
 };
 
 const CONTRACT_TYPES = [
-  { value: 'full_time', label: 'Full-time (8h/g)' },
-  { value: 'part_time', label: 'Part-time (4h/g)' },
+  { value: 'full_time',    label: 'Full-time (8h/g)' },
+  { value: 'part_time_6h', label: 'Part-time (6h/g)' },
+  { value: 'part_time',    label: 'Part-time (4h/g)' },
 ];
 
 const emptyForm = {
@@ -233,11 +234,11 @@ export default function Users() {
                   <td className="px-4 py-3">
                     {user.role === 'employee' ? (
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        user.contract_type === 'part_time'
+                        ['part_time','part_time_6h'].includes(user.contract_type)
                           ? 'bg-orange-100 text-orange-700'
                           : 'bg-blue-100 text-blue-700'
                       }`}>
-                        {user.contract_type === 'part_time' ? 'Part-time' : 'Full-time'}
+                        {user.contract_type === 'full_time' ? 'Full-time' : user.contract_type === 'part_time_6h' ? 'Part-time 6h' : 'Part-time 4h'}
                       </span>
                     ) : <span className="text-gray-400 text-xs">—</span>}
                   </td>
