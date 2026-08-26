@@ -43,8 +43,8 @@ export default function Timesheet() {
 
   const holidayDates = holidays.map(h => h.holiday_date);
   const weekendAuthDateSet = new Set(weekendAuthorizations.map(a => a.auth_date));
-  const systemProjects = projects.filter(p => p.is_system);
-  const normalProjects = projects.filter(p => !p.is_system);
+  const systemProjects = projects.filter(p => p.is_system && p.is_active !== false);
+  const normalProjects = projects.filter(p => !p.is_system && p.is_active !== false);
   const filteredNormalProjects = [...normalProjects]
     .sort((a, b) => {
       const ca = (a.client_name || '').toLowerCase();
