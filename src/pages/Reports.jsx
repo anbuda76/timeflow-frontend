@@ -736,8 +736,8 @@ function TabCostCenter() {
                           <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
                           <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Appr. €</th>
                           <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Att. €</th>
-                          <th className="px-4 py-3 text-right font-semibold text-gray-700">Totale €</th>
-                          <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €</th>
+                          <th className="px-4 py-3 text-right font-semibold text-blue-700">Totale €<span className="block text-xs font-normal text-gray-400">Appr. + Att.</span></th>
+                          <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €<span className="block text-xs font-normal text-gray-400">Budget − Totale</span></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -749,13 +749,22 @@ function TabCostCenter() {
                             <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
                             <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
                             <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
-                            <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="font-medium text-blue-600 block">{formatCurrency(p.consuntivo_amount)}</span>
+                              {(p.approved_amount > 0 || p.pending_amount > 0) && (
+                                <span className="text-xs text-gray-400 block mt-0.5">
+                                  <span className="text-green-600">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</span>
+                                  {' + '}
+                                  <span className="text-amber-500">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</span>
+                                </span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-right">
                               {p.delta_amount != null ? (
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                   p.delta_amount >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
                                 }`}>
-                                  {p.delta_amount >= 0 ? '↑ ' : '↓ '}{formatCurrency(p.delta_amount)}
+                                  {p.delta_amount >= 0 ? '✓ +' : '⚠ '}{formatCurrency(Math.abs(p.delta_amount))}
                                 </span>
                               ) : <span className="text-gray-400">—</span>}
                             </td>
