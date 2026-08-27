@@ -607,7 +607,7 @@ function TabCostCenter() {
           {loading ? 'Carico…' : '🔍 Genera Report'}
         </button>
         {TAB_HINTS[costTab] && (
-          <p className="text-sm text-gray-500 pb-2 flex-1 min-w-[260px] leading-relaxed">
+          <p className="text-[19px] font-semibold text-gray-700 pb-2 flex-1 min-w-[300px] leading-snug">
             {TAB_HINTS[costTab]}
           </p>
         )}
