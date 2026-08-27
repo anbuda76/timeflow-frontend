@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { getProjects } from '../api/projects';
 import { getUsers } from '../api/users';
 import { getTimesheets } from '../api/timesheets';
 import AppHeader from '../components/AppHeader';
-import { getCostReport, getMonthlyTrend, exportExcel } from '../api/reports';
+import { getCostReport, getMonthlyTrend, exportExcel, getProjectDetail } from '../api/reports';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -348,6 +348,29 @@ function TabCostCenter() {
   const [projSearchTot, setProjSearchTot]       = useState('');
   const [clientSearchTot, setClientSearchTot]   = useState('');
   const [projDropOpenTot, setProjDropOpenTot]   = useState(false);
+  // Drill-down dettaglio risorse su commessa
+  const [expandedProject, setExpandedProject]   = useState(null);
+  const [detailCache, setDetailCache]           = useState({});
+  const [detailLoading, setDetailLoading]       = useState(false);
+
+  const toggleDetail = async (projectId) => {
+    if (expandedProject === projectId) { setExpandedProject(null); return; }
+    setExpandedProject(projectId);
+    const isAllYears = costTab === 'progetti-totale';
+    const cacheKey = `${projectId}-${isAllYears ? 'all' : year}-${month || 'y'}`;
+    if (detailCache[cacheKey]) return;
+    setDetailLoading(true);
+    try {
+      const params = {};
+      if (!isAllYears) { params.year = year; if (month) params.month = month; }
+      const data = await getProjectDetail(projectId, params);
+      setDetailCache(c => ({ ...c, [cacheKey]: data }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   useEffect(() => {
     getProjects().then(data => setProjects(data.filter(p => !p.is_system)));
@@ -726,6 +749,7 @@ function TabCostCenter() {
                     <table className="min-w-full text-sm">
                       <thead className="bg-gray-50">
                         <tr>
+                          <th className="px-2 py-3 w-8"></th>
                           <th className="px-3 py-3 text-center font-semibold text-gray-500">ID</th>
                           <th className="px-4 py-3 text-left font-semibold text-gray-700">Progetto</th>
                           <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
@@ -738,8 +762,15 @@ function TabCostCenter() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredProj.map(p => (
-                          <tr key={p.project_id} className="border-b hover:bg-gray-50">
+                        {filteredProj.map(p => {
+                          const isOpen = expandedProject === p.project_id;
+                          const cacheKey = `${p.project_id}-${costTab === 'progetti-totale' ? 'all' : year}-${month || 'y'}`;
+                          const detail = detailCache[cacheKey];
+                          return (
+                          <Fragment key={p.project_id}>
+                          <tr onClick={() => toggleDetail(p.project_id)}
+                              className={`border-b cursor-pointer transition ${isOpen ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                            <td className="px-2 py-3 text-center text-gray-400 select-none">{isOpen ? '▼' : '▶'}</td>
                             <td className="px-3 py-3 text-center text-xs text-gray-400 font-mono">{p.project_id}</td>
                             <td className="px-4 py-3 font-medium text-gray-800">{p.project_name}</td>
                             <td className="px-4 py-3 text-gray-500">{p.client_name || '—'}</td>
@@ -760,7 +791,91 @@ function TabCostCenter() {
                               ) : <span className="text-gray-400">—</span>}
                             </td>
                           </tr>
-                        ))}
+
+                          {/* ── Riga espansa: dettaglio risorse ── */}
+                          {isOpen && (
+                            <tr className="bg-slate-50 border-b">
+                              <td colSpan={10} className="px-6 py-4">
+                                {detailLoading && !detail ? (
+                                  <p className="text-xs text-gray-400 py-2">Caricamento dettaglio…</p>
+                                ) : !detail ? (
+                                  <p className="text-xs text-gray-400 py-2">Nessun dato disponibile</p>
+                                ) : (
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                                      Dettaglio costi commessa
+                                    </p>
+                                    <table className="min-w-full text-xs">
+                                      <thead>
+                                        <tr className="text-gray-500 border-b border-gray-200">
+                                          <th className="px-3 py-2 text-left font-semibold">Risorsa</th>
+                                          <th className="px-3 py-2 text-right font-semibold">Tariffa</th>
+                                          <th className="px-3 py-2 text-right font-semibold">Ore appr.</th>
+                                          <th className="px-3 py-2 text-right font-semibold">Ore att.</th>
+                                          <th className="px-3 py-2 text-right font-semibold">Ore tot.</th>
+                                          <th className="px-3 py-2 text-right font-semibold">Costo €</th>
+                                          <th className="px-3 py-2 text-left font-semibold w-40">Incidenza</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {detail.users.map(u => (
+                                          <tr key={u.user_id} className="border-b border-gray-100">
+                                            <td className="px-3 py-2 font-medium text-gray-700">{u.user_name}</td>
+                                            <td className="px-3 py-2 text-right text-gray-500">{u.hourly_rate ? `€${u.hourly_rate}/h` : '—'}</td>
+                                            <td className="px-3 py-2 text-right text-green-600">{u.approved_hours > 0 ? `${u.approved_hours}h` : '—'}</td>
+                                            <td className="px-3 py-2 text-right text-amber-600">{u.pending_hours > 0 ? `${u.pending_hours}h` : '—'}</td>
+                                            <td className="px-3 py-2 text-right font-medium text-gray-700">{u.total_hours}h</td>
+                                            <td className="px-3 py-2 text-right font-semibold text-blue-600">{formatCurrency(u.total_cost)}</td>
+                                            <td className="px-3 py-2">
+                                              <div className="flex items-center gap-2">
+                                                <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                  <div className="h-full bg-blue-400 rounded-full" style={{ width: `${Math.min(u.pct, 100)}%` }} />
+                                                </div>
+                                                <span className="text-gray-500 w-10 text-right">{u.pct}%</span>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
+
+                                        {/* Riga fornitori */}
+                                        {detail.vendor_cost > 0 && (
+                                          <tr className="border-b border-gray-100 bg-purple-50">
+                                            <td className="px-3 py-2 font-medium text-purple-700">🏢 Costi fornitori</td>
+                                            <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                            <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                            <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                            <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                            <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(detail.vendor_cost)}</td>
+                                            <td className="px-3 py-2">
+                                              <div className="flex items-center gap-2">
+                                                <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                  <div className="h-full bg-purple-400 rounded-full" style={{ width: `${Math.min(detail.vendor_pct, 100)}%` }} />
+                                                </div>
+                                                <span className="text-gray-500 w-10 text-right">{detail.vendor_pct}%</span>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </tbody>
+                                      <tfoot>
+                                        <tr className="bg-gray-100 font-semibold text-gray-700">
+                                          <td className="px-3 py-2" colSpan={5}>Totale commessa</td>
+                                          <td className="px-3 py-2 text-right text-blue-700">{formatCurrency(detail.total_cost)}</td>
+                                          <td className="px-3 py-2"></td>
+                                        </tr>
+                                      </tfoot>
+                                    </table>
+                                    {detail.users.length === 0 && detail.vendor_cost === 0 && (
+                                      <p className="text-xs text-gray-400 py-3 text-center">Nessun costo registrato su questa commessa</p>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                          </Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
                   ) : (

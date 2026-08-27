@@ -6,6 +6,9 @@ export const getCostReport = (params) =>
 export const getMonthlyTrend = (params) =>
   api.get('/reports/monthly-trend', { params }).then(r => r.data);
 
+export const getProjectDetail = (projectId, params) =>
+  api.get(`/reports/projects/${projectId}/detail`, { params }).then(r => r.data);
+
 export const exportExcel = async (params) => {
   const response = await api.get('/reports/export-excel', {
     params,
