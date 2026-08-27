@@ -3,6 +3,7 @@ import { getProjects } from '../api/projects';
 import { getUsers } from '../api/users';
 import { getTimesheets } from '../api/timesheets';
 import AppHeader from '../components/AppHeader';
+import SchedaCommessa from '../components/SchedaCommessa';
 import { getCostReport, getMonthlyTrend, exportExcel, getProjectDetail } from '../api/reports';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -353,24 +354,48 @@ function TabCostCenter() {
   const [detailCache, setDetailCache]           = useState({});
   const [detailLoading, setDetailLoading]       = useState(false);
 
-  const toggleDetail = async (projectId) => {
-    if (expandedProject === projectId) { setExpandedProject(null); return; }
-    setExpandedProject(projectId);
-    const isAllYears = costTab === 'progetti-totale';
-    const cacheKey = `${projectId}-${isAllYears ? 'all' : year}-${month || 'y'}`;
-    if (detailCache[cacheKey]) return;
+  const [schedaProject, setSchedaProject] = useState(null);
+  // Snapshot: "Tutti gli anni" attivo di default
+  const [snapshotYearAll, setSnapshotYearAll] = useState(true);
+  const [yearlyTotals, setYearlyTotals]       = useState(null);
+  const allYearsMode = (costTab === 'anno' && snapshotYearAll) || costTab === 'progetti-totale';
+
+  const detailKey = (projectId) =>
+    `${projectId}-${allYearsMode ? 'all' : year}-${allYearsMode ? 'y' : (month || 'y')}`;
+
+  const fetchDetail = async (projectId) => {
+    const cacheKey = detailKey(projectId);
+    if (detailCache[cacheKey]) return detailCache[cacheKey];
     setDetailLoading(true);
     try {
       const params = {};
-      if (!isAllYears) { params.year = year; if (month) params.month = month; }
+      if (!allYearsMode) { params.year = year; if (month) params.month = month; }
       const data = await getProjectDetail(projectId, params);
       setDetailCache(c => ({ ...c, [cacheKey]: data }));
+      return data;
     } catch (err) {
       console.error(err);
+      return null;
     } finally {
       setDetailLoading(false);
     }
   };
+
+  const toggleDetail = async (projectId) => {
+    if (expandedProject === projectId) { setExpandedProject(null); return; }
+    setExpandedProject(projectId);
+    await fetchDetail(projectId);
+  };
+
+  const openScheda = async (projectId, e) => {
+    if (e) e.stopPropagation();
+    setSchedaProject(projectId);
+    await fetchDetail(projectId);
+  };
+
+  const periodLabel = allYearsMode
+    ? 'Tutti gli anni'
+    : `${year}${month ? ` — ${MONTHS[month - 1]}` : ''}`;
 
   useEffect(() => {
     getProjects().then(data => setProjects(data.filter(p => !p.is_system)));
@@ -379,17 +404,33 @@ function TabCostCenter() {
   const loadReport = async () => {
     setLoading(true);
     try {
-      if (costTab === 'progetti-totale') {
+      if (allYearsMode) {
         // Aggrega tutti gli anni — senza filtro mese
         const results = await Promise.all(YEARS.map(y => getCostReport({ year: y })));
         const pMap = {};
-        results.forEach(r => {
+        const uMap = {};
+        const yearly = [];
+        results.forEach((r, idx) => {
           (r.projects || []).forEach(p => {
-            if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0 };
+            if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0, vendor_cost: 0 };
             if (p.budget_amount) pMap[p.project_id].budget_amount = p.budget_amount;
             pMap[p.project_id].approved_amount  += p.approved_amount  || 0;
             pMap[p.project_id].pending_amount   += p.pending_amount   || 0;
             pMap[p.project_id].consuntivo_amount+= p.consuntivo_amount|| 0;
+            pMap[p.project_id].vendor_cost      += p.vendor_cost      || 0;
+          });
+          (r.users || []).forEach(u => {
+            if (!uMap[u.user_id]) uMap[u.user_id] = { ...u, approved_hours: 0, pending_hours: 0, approved_cost: 0, pending_cost: 0, hours: 0, cost: 0 };
+            uMap[u.user_id].approved_hours += u.approved_hours || 0;
+            uMap[u.user_id].pending_hours  += u.pending_hours  || 0;
+            uMap[u.user_id].approved_cost  += u.approved_cost  || 0;
+            uMap[u.user_id].pending_cost   += u.pending_cost   || 0;
+            uMap[u.user_id].hours          += u.hours          || 0;
+            uMap[u.user_id].cost           += u.cost           || 0;
+          });
+          yearly.push({
+            year: YEARS[idx],
+            cost: (r.total_approved_cost || 0) + (r.total_pending_cost || 0),
           });
         });
         const aggregated = Object.values(pMap).map(p => {
@@ -401,7 +442,13 @@ function TabCostCenter() {
         });
         const totalAppr = aggregated.reduce((s, p) => s + p.approved_amount, 0);
         const totalPend = aggregated.reduce((s, p) => s + p.pending_amount, 0);
-        setReport({ projects: aggregated, users: [], total_approved_cost: totalAppr, total_pending_cost: totalPend });
+        setReport({
+          projects: aggregated,
+          users: Object.values(uMap).sort((a, b) => b.cost - a.cost),
+          total_approved_cost: totalAppr,
+          total_pending_cost: totalPend,
+        });
+        setYearlyTotals(yearly);
         setTrend(null);
       } else if (['anno', 'progetti-anno', 'utenti'].includes(costTab)) {
         const params = { year };
@@ -441,7 +488,7 @@ function TabCostCenter() {
     trend?.forEach(p => {
       point[`${p.project_name} approvato`] = p.monthly[i]?.cumulative_approved || 0;
       point[`${p.project_name} totale`]    = p.monthly[i]?.cumulative_cost     || 0;
-      point[`${p.project_name} target`]    = p.monthly[i]?.budget_target       || null;
+      point[`${p.project_name} budget`]    = p.monthly[i]?.budget_line         || null;
     });
     return point;
   });
@@ -456,10 +503,14 @@ function TabCostCenter() {
   });
 
   // Grafico aggregato: somma tutti i progetti per mese
+  // Il budget è il tetto complessivo dei progetti attivi nel periodo: linea costante
+  const totalBudgetLine = parseFloat(
+    (trend?.reduce((s, p) => s + (p.budget_amount || 0), 0) || 0).toFixed(2)
+  );
   const aggTrendData = visibleMonths.map((m, i) => ({
     month: m,
-    'Budget cumulato': parseFloat((trend?.reduce((s, p) => s + (p.monthly[i]?.budget_target || 0), 0) || 0).toFixed(2)),
-    'Costo cumulato':  parseFloat((trend?.reduce((s, p) => s + (p.monthly[i]?.cumulative_cost || 0), 0) || 0).toFixed(2)),
+    'Budget totale':  totalBudgetLine || null,
+    'Costo cumulato': parseFloat((trend?.reduce((s, p) => s + (p.monthly[i]?.cumulative_cost || 0), 0) || 0).toFixed(2)),
   }));
 
   // Dettaglio filtrato per progetto selezionato
@@ -510,10 +561,26 @@ function TabCostCenter() {
           <div className="flex items-center gap-2 pb-1">
             <span className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg">📅 Tutti gli anni 2024–2027</span>
           </div>
+        ) : costTab === 'anno' ? (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Anno</label>
+            <select
+              value={snapshotYearAll ? 'all' : year}
+              onChange={e => {
+                if (e.target.value === 'all') { setSnapshotYearAll(true); setMonth(null); }
+                else { setSnapshotYearAll(false); setYear(parseInt(e.target.value)); }
+                setReport(null); setTrend(null); setYearlyTotals(null);
+              }}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tutti gli anni</option>
+              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
         ) : (
           <SelectYear value={year} onChange={v => { setYear(v); setReport(null); setTrend(null); }} />
         )}
-        {['anno', 'progetti-anno', 'utenti'].includes(costTab) && (
+        {['anno', 'progetti-anno', 'utenti'].includes(costTab) && !allYearsMode && (
           <SelectMonth value={month} onChange={v => { setMonth(v); setReport(null); }} optional />
         )}
         <button
@@ -535,7 +602,8 @@ function TabCostCenter() {
           )}
           {report && (() => {
               const totalBudget = report.projects?.reduce((s, p) => s + (p.budget_amount || 0), 0) ?? 0;
-              const totalCost   = (report.total_approved_cost || 0) + (report.total_pending_cost || 0);
+              const totalVendor = report.projects?.reduce((s, p) => s + (p.vendor_cost   || 0), 0) ?? 0;
+              const totalCost   = (report.total_approved_cost || 0) + (report.total_pending_cost || 0) + totalVendor;
               const delta       = totalBudget > 0 ? totalBudget - totalCost : null;
               const deltaPos    = delta != null && delta >= 0;
               return (
@@ -568,6 +636,12 @@ function TabCostCenter() {
                       <span>In attesa</span>
                       <span className="font-medium">{formatCurrency(report.total_pending_cost)}</span>
                     </div>
+                    {totalVendor > 0 && (
+                      <div className="flex justify-between px-2 py-0.5 bg-purple-50 rounded text-purple-700">
+                        <span>Fornitori</span>
+                        <span className="font-medium">{formatCurrency(totalVendor)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -594,12 +668,17 @@ function TabCostCenter() {
                 </div>
               </div>
 
-              {report.month && (
+              {snapshotYearAll ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-4 text-sm text-blue-700 flex items-center gap-2">
+                  <span>📅</span>
+                  <span>Vista su <strong>tutte le annualità</strong> (2024–2027). I costi sono cumulati; il budget resta il tetto complessivo di ogni commessa.</span>
+                </div>
+              ) : report.month ? (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-4 text-sm text-amber-700 flex items-center gap-2">
                   <span>⚠️</span>
-                  <span>I valori <strong>Budget €</strong> e <strong>Budget h</strong> si riferiscono al budget annuale del progetto, non proporzionati al singolo mese.</span>
+                  <span>I valori <strong>Budget €</strong> si riferiscono al budget complessivo del progetto, non proporzionato al singolo mese.</span>
                 </div>
-              )}
+              ) : null}
 
               {report.projects?.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
@@ -619,33 +698,85 @@ function TabCostCenter() {
                 </div>
               )}
 
-              {/* Andamento cumulato (aggregato) */}
-              {trend && trend.length > 0 && (
+              {/* Andamento cumulato per annualità (modalità Tutti gli anni) */}
+              {snapshotYearAll && yearlyTotals && yearlyTotals.length > 0 && (() => {
+                let cum = 0;
+                const data = yearlyTotals.map(y => {
+                  cum += y.cost;
+                  return {
+                    month: String(y.year),
+                    'Budget totale':  totalBudget > 0 ? totalBudget : null,
+                    'Costo cumulato': parseFloat(cum.toFixed(2)),
+                  };
+                });
+                return (
+                  <div className="bg-white rounded-xl shadow-sm p-4 mb-2">
+                    <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato per annualità</h2>
+                    <p className="text-xs text-gray-400 mb-4">Costo progressivo su tutte le annualità confrontato con il budget complessivo</p>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
+                        <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
+                        {totalBudget > 0 && (
+                          <Line type="monotone" dataKey="Budget totale"
+                            stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                        )}
+                        <Line type="monotone" dataKey="Costo cumulato"
+                          stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div className="flex gap-5 mt-2 px-2 text-xs text-gray-500">
+                      {totalBudget > 0 && (
+                        <span className="flex items-center gap-1.5">
+                          <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 3"/></svg>
+                          Budget totale ({formatCurrency(totalBudget)})
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1.5">
+                        <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#3b82f6" strokeWidth="2.5"/></svg>
+                        Costo cumulato
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Andamento cumulato mensile (anno singolo) */}
+              {!snapshotYearAll && trend && trend.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm p-4 mb-2">
                   <h2 className="font-semibold text-gray-800 mb-1">📈 Andamento cumulato — Tutti i progetti ({year})</h2>
-                  <p className="text-xs text-gray-400 mb-4">Somma cumulata mensile di budget e costi su tutti i progetti</p>
+                  <p className="text-xs text-gray-400 mb-4">Costo cumulato mensile confrontato con il budget complessivo dei progetti attivi</p>
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart data={aggTrendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
                       <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
-                      <Line type="monotone" dataKey="Budget cumulato"
-                        stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                      {totalBudgetLine > 0 && (
+                        <Line type="monotone" dataKey="Budget totale"
+                          stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                      )}
                       <Line type="monotone" dataKey="Costo cumulato"
                         stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} />
                     </LineChart>
                   </ResponsiveContainer>
                   <div className="flex gap-5 mt-2 px-2 text-xs text-gray-500">
-                    <span className="flex items-center gap-1.5">
-                      <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 3"/></svg>
-                      Budget cumulato
-                    </span>
+                    {totalBudgetLine > 0 && (
+                      <span className="flex items-center gap-1.5">
+                        <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 3"/></svg>
+                        Budget totale ({formatCurrency(totalBudgetLine)})
+                      </span>
+                    )}
                     <span className="flex items-center gap-1.5">
                       <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#3b82f6" strokeWidth="2.5"/></svg>
                       Costo cumulato
                     </span>
                   </div>
+                  <p className="text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                    ℹ Il budget è il tetto complessivo delle commesse, non una quota annuale: la linea è costante e il costo cumulato mostrato riguarda il solo {year}.
+                  </p>
                 </div>
               )}
             </>
@@ -764,7 +895,7 @@ function TabCostCenter() {
                       <tbody>
                         {filteredProj.map(p => {
                           const isOpen = expandedProject === p.project_id;
-                          const cacheKey = `${p.project_id}-${costTab === 'progetti-totale' ? 'all' : year}-${month || 'y'}`;
+                          const cacheKey = detailKey(p.project_id);
                           const detail = detailCache[cacheKey];
                           return (
                           <Fragment key={p.project_id}>
@@ -802,9 +933,17 @@ function TabCostCenter() {
                                   <p className="text-xs text-gray-400 py-2">Nessun dato disponibile</p>
                                 ) : (
                                   <div>
-                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                                      Dettaglio costi commessa
-                                    </p>
+                                    <div className="flex items-center justify-between mb-3">
+                                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        Dettaglio costi commessa
+                                      </p>
+                                      <button
+                                        onClick={(e) => openScheda(p.project_id, e)}
+                                        className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition font-medium"
+                                      >
+                                        📋 Scheda commessa
+                                      </button>
+                                    </div>
                                     <table className="min-w-full text-xs">
                                       <thead>
                                         <tr className="text-gray-500 border-b border-gray-200">
@@ -1007,7 +1146,7 @@ function TabCostCenter() {
                         <th className="px-3 py-2 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Costo att.</th>
                         <th className="px-4 py-2 text-right font-semibold text-gray-700">Cum. approvato</th>
                         <th className="px-4 py-2 text-right font-semibold text-gray-700">Cum. totale</th>
-                        <th className="px-4 py-2 text-right font-semibold text-gray-700">Target €</th>
+                        <th className="px-4 py-2 text-right font-semibold text-gray-700">% budget</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1023,7 +1162,21 @@ function TabCostCenter() {
                             <td className="px-3 py-2 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{m.pending_cost > 0 ? formatCurrency(m.pending_cost) : '—'}</td>
                             <td className="px-4 py-2 text-right font-medium text-green-600">{noData ? '—' : formatCurrency(m.cumulative_approved)}</td>
                             <td className="px-4 py-2 text-right font-medium text-blue-600">{noData ? '—' : formatCurrency(m.cumulative_cost)}</td>
-                            <td className="px-4 py-2 text-right text-gray-500">{formatCurrency(m.budget_target)}</td>
+                            <td className="px-4 py-2 text-right">
+                              {m.budget_pct == null ? (
+                                <span className="text-gray-400">—</span>
+                              ) : (
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full ${m.budget_pct > 100 ? 'bg-red-500' : 'bg-blue-400'}`}
+                                         style={{ width: `${Math.min(m.budget_pct, 100)}%` }} />
+                                  </div>
+                                  <span className={`w-12 text-right ${m.budget_pct > 100 ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                                    {noData ? '—' : `${m.budget_pct}%`}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
@@ -1034,6 +1187,16 @@ function TabCostCenter() {
             </>
           )}
         </>
+      )}
+
+      {/* ── Scheda Commessa (modale) ── */}
+      {schedaProject != null && (
+        <SchedaCommessa
+          detail={detailCache[detailKey(schedaProject)]}
+          loading={detailLoading}
+          periodLabel={periodLabel}
+          onClose={() => setSchedaProject(null)}
+        />
       )}
     </div>
   );
