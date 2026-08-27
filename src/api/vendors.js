@@ -1,4 +1,4 @@
-import api from './axios';
+import api from './client';
 
 // ── Albo Fornitori ──────────────────────────────────────────────────────────
 export const getVendors     = ()           => api.get('/vendors').then(r => r.data);
