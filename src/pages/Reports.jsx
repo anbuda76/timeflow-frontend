@@ -370,9 +370,11 @@ function TabCostCenter() {
           });
         });
         const aggregated = Object.values(pMap).map(p => {
-          const delta = p.budget_amount > 0 ? p.budget_amount - p.consuntivo_amount : null;
+          const vendor_cost = p.vendor_cost || 0;
+          const total_amount = p.consuntivo_amount + vendor_cost;
+          const delta = p.budget_amount > 0 ? p.budget_amount - total_amount : null;
           const delta_pct = p.budget_amount > 0 ? Math.round((delta / p.budget_amount) * 100) : null;
-          return { ...p, delta_amount: delta, delta_amount_pct: delta_pct };
+          return { ...p, vendor_cost, total_amount, delta_amount: delta, delta_amount_pct: delta_pct };
         });
         const totalAppr = aggregated.reduce((s, p) => s + p.approved_amount, 0);
         const totalPend = aggregated.reduce((s, p) => s + p.pending_amount, 0);
@@ -730,6 +732,7 @@ function TabCostCenter() {
                           <th className="px-4 py-3 text-right font-semibold text-gray-700">Budget €</th>
                           <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Appr. €</th>
                           <th className="px-3 py-3 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Att. €</th>
+                          <th className="px-3 py-3 text-right font-semibold text-purple-600 bg-purple-50 border-x border-purple-100">Fornitori €</th>
                           <th className="px-4 py-3 text-right font-semibold text-blue-700">Totale €</th>
                           <th className="px-4 py-3 text-right font-semibold text-gray-700">Delta €</th>
                         </tr>
@@ -743,7 +746,8 @@ function TabCostCenter() {
                             <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(p.budget_amount)}</td>
                             <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{p.approved_amount > 0 ? formatCurrency(p.approved_amount) : '—'}</td>
                             <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{p.pending_amount > 0 ? formatCurrency(p.pending_amount) : '—'}</td>
-                            <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.consuntivo_amount)}</td>
+                            <td className="px-3 py-3 text-right text-purple-600 font-medium bg-purple-50 border-x border-purple-100">{(p.vendor_cost || 0) > 0 ? formatCurrency(p.vendor_cost) : '—'}</td>
+                            <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(p.total_amount ?? p.consuntivo_amount)}</td>
                             <td className="px-4 py-3 text-right">
                               {p.delta_amount != null ? (
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${

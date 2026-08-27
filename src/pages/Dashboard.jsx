@@ -12,6 +12,7 @@ const TOOLTIPS = {
   '/weekend-authorizations':  'Gestisci le richieste di lavoro nei weekend e nei giorni festivi.',
   '/approvals':               'Gestisci i timesheet: visualizza e approva (o rifiuta) i timesheet inviati dal team.',
   '/reports':                 'Neo Insight: reportistica timesheet (KPI per stato, dettaglio utenti) e analisi costi per progetto con snapshot e andamento mensile.',
+  '/vendors':                 'Albo fornitori e costi esterni: gestisci i fornitori approvati e imputa i loro costi ai progetti.',
   '/organizations':           'Gestisci le organizzazioni registrate nella piattaforma.',
   '/timesheet':               'Compila e invia il tuo timesheet mensile con le ore lavorate per progetto.',
 };
@@ -66,6 +67,7 @@ export default function Dashboard() {
       operative: [
         { icon: '✅', label: 'Approvazioni', path: '/approvals' },
         { icon: '🔬', label: 'Neo Insight',  path: '/reports'   },
+        { icon: '🏢', label: 'Fornitori',    path: '/vendors'   },
       ],
       anagrafiche: [
         { icon: '👥', label: 'Utenti',                 path: '/users'                  },
@@ -96,6 +98,7 @@ export default function Dashboard() {
         { icon: '✅', label: 'Approvazioni',      path: '/approvals' },
         { icon: '⏱',  label: 'Il Mio Timesheet', path: '/timesheet' },
         { icon: '🔬', label: 'Neo Insight',       path: '/reports'   },
+        { icon: '🏢', label: 'Fornitori',         path: '/vendors'   },
       ],
     },
     employee: {

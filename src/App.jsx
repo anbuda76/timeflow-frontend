@@ -14,6 +14,7 @@ import PrivateRoute from './components/PrivateRoute';
 import Organizations from './pages/Organizations';
 import Calendar from './pages/Calendar';
 import WeekendAuthorizations from './pages/WeekendAuthorizations';
+import Vendors from './pages/Vendors';
 
 export default function App() {
   return (
@@ -69,6 +70,11 @@ export default function App() {
         <Route path="/weekend-authorizations" element={
           <PrivateRoute roles={['admin', 'super_admin']}>
             <WeekendAuthorizations />
+          </PrivateRoute>
+        } />
+        <Route path="/vendors" element={
+          <PrivateRoute roles={['admin', 'super_admin', 'manager']}>
+            <Vendors />
           </PrivateRoute>
         } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
