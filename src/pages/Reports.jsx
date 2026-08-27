@@ -549,7 +549,7 @@ function TabCostCenter() {
       </div>
 
       {/* Sub-tab */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-4">
         {[
           { id: 'anno',            label: '🎯 Snapshot Costi'          },
           { id: 'progetti-totale', label: '🏛 Analisi Progetto Totale' },
@@ -570,6 +570,13 @@ function TabCostCenter() {
           </button>
         ))}
       </div>
+
+      {/* Descrizione del report selezionato */}
+      {TAB_HINTS[costTab] && (
+        <p className="text-[15px] font-medium text-gray-600 leading-relaxed max-w-3xl mb-5">
+          {TAB_HINTS[costTab]}
+        </p>
+      )}
 
       {/* Filtri */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
@@ -606,11 +613,6 @@ function TabCostCenter() {
         >
           {loading ? 'Carico…' : '🔍 Genera Report'}
         </button>
-        {TAB_HINTS[costTab] && (
-          <p className="text-[19px] font-semibold text-gray-700 pb-2 flex-1 min-w-[300px] leading-snug">
-            {TAB_HINTS[costTab]}
-          </p>
-        )}
       </div>
 
       {/* SUB-TAB ANNO */}
