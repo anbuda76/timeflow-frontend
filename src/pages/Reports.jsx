@@ -26,13 +26,13 @@ const TAB_HINTS = {
   'anno':
     'Fotografia economica complessiva: budget, costi sostenuti e margine residuo su tutti i progetti del periodo.',
   'progetti-anno':
-    'Confronto budget verso costi per progetto nell’anno scelto. (Clicca una riga per il dettaglio delle risorse.)',
+    'Confronto budget verso costi per progetto nell’anno scelto.',
   'progetti-totale':
-    'Confronto budget verso costi cumulato su tutte le annualità: utile per commesse pluriennali e per il consuntivo di fine lavori.',
+    'Confronto budget verso costi cumulato su tutte le annualità.',
   'utenti':
     'Costo di ciascuna risorsa nel periodo, calcolato su ore registrate e tariffa oraria.',
   'mese':
-    'Distribuzione dei costi mese per mese nel singolo anno.',
+    'Distribuzione dei costi per mese nel singolo anno.',
 };
 
 const STATUS_COLORS = {
