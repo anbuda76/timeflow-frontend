@@ -4,7 +4,7 @@ import { getUsers } from '../api/users';
 import { getTimesheets } from '../api/timesheets';
 import AppHeader from '../components/AppHeader';
 import SchedaCommessa from '../components/SchedaCommessa';
-import { getCostReport, getMonthlyTrend, exportExcel, getProjectDetail } from '../api/reports';
+import { getCostReport, getMonthlyTrend, exportExcel, getProjectDetail, getUserDetail } from '../api/reports';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -401,6 +401,31 @@ function TabCostCenter() {
     if (expandedProject === projectId) { setExpandedProject(null); return; }
     setExpandedProject(projectId);
     await fetchDetail(projectId);
+  };
+
+  // ── Drill-down risorsa → commesse ──────────────────────────────────────────
+  const [expandedUser, setExpandedUser]   = useState(null);
+  const [userCache, setUserCache]         = useState({});
+  const [userLoading, setUserLoading]     = useState(false);
+
+  const userKey = (uid) => `${uid}-${allYearsMode ? 'all' : year}-${allYearsMode ? 'y' : (month || 'y')}`;
+
+  const toggleUserDetail = async (uid) => {
+    if (expandedUser === uid) { setExpandedUser(null); return; }
+    setExpandedUser(uid);
+    const key = userKey(uid);
+    if (userCache[key]) return;
+    setUserLoading(true);
+    try {
+      const params = {};
+      if (!allYearsMode) { params.year = year; if (month) params.month = month; }
+      const data = await getUserDetail(uid, params);
+      setUserCache(c => ({ ...c, [key]: data }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUserLoading(false);
+    }
   };
 
   const openScheda = async (projectId, e) => {
@@ -1069,6 +1094,7 @@ function TabCostCenter() {
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-2 py-3 w-8"></th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">Utente</th>
                       <th className="px-4 py-3 text-right font-semibold text-gray-700">Costo/h</th>
                       <th className="px-3 py-3 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Costo appr.</th>
@@ -1077,15 +1103,151 @@ function TabCostCenter() {
                     </tr>
                   </thead>
                   <tbody>
-                    {report.users.map(u => (
-                      <tr key={u.user_id} className="border-b hover:bg-gray-50">
+                    {report.users.map(u => {
+                      const isOpen = expandedUser === u.user_id;
+                      const ud = userCache[userKey(u.user_id)];
+                      return (
+                      <Fragment key={u.user_id}>
+                      <tr onClick={() => toggleUserDetail(u.user_id)}
+                          className={`border-b cursor-pointer transition ${isOpen ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                        <td className="px-2 py-3 text-center text-gray-400 select-none">{isOpen ? '▼' : '▶'}</td>
                         <td className="px-4 py-3 font-medium text-gray-800">{u.user_name}</td>
                         <td className="px-4 py-3 text-right text-gray-500">{u.hourly_rate ? `€${u.hourly_rate}/h` : '—'}</td>
                         <td className="px-3 py-3 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{u.approved_cost > 0 ? formatCurrency(u.approved_cost) : '—'}</td>
                         <td className="px-3 py-3 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{u.pending_cost > 0 ? formatCurrency(u.pending_cost) : '—'}</td>
                         <td className="px-4 py-3 text-right font-medium text-blue-600">{formatCurrency(u.cost)}</td>
                       </tr>
-                    ))}
+
+                      {isOpen && (
+                        <tr className="bg-slate-50 border-b">
+                          <td colSpan={6} className="px-6 py-4">
+                            {userLoading && !ud ? (
+                              <p className="text-xs text-gray-400 py-2">Caricamento dettaglio…</p>
+                            ) : !ud ? (
+                              <p className="text-xs text-gray-400 py-2">Nessun dato disponibile</p>
+                            ) : (
+                              <div>
+                                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    Commesse su cui ha consuntivato
+                                  </p>
+                                  <div className="flex gap-4 text-xs">
+                                    <span className="text-gray-500">
+                                      Fatturabile <span className="font-medium text-blue-600">{formatCurrency(ud.billable_cost)}</span>
+                                      <span className="text-gray-400"> ({ud.billable_pct}%)</span>
+                                    </span>
+                                    {ud.system_cost > 0 && (
+                                      <span className="text-gray-500">
+                                        Assenze <span className="font-medium text-gray-600">{formatCurrency(ud.system_cost)}</span>
+                                      </span>
+                                    )}
+                                    {ud.overtime_cost > 0 && (
+                                      <span className="text-gray-500">
+                                        Straordinari <span className="font-medium text-orange-600">{formatCurrency(ud.overtime_cost)}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <table className="min-w-full text-xs">
+                                  <thead>
+                                    <tr className="text-gray-500 border-b border-gray-200">
+                                      <th className="px-3 py-2 text-left font-semibold">Commessa</th>
+                                      <th className="px-3 py-2 text-left font-semibold">Cliente</th>
+                                      <th className="px-3 py-2 text-right font-semibold">Ore appr.</th>
+                                      <th className="px-3 py-2 text-right font-semibold">Ore att.</th>
+                                      <th className="px-3 py-2 text-right font-semibold">Ore tot.</th>
+                                      <th className="px-3 py-2 text-right font-semibold">Costo €</th>
+                                      <th className="px-3 py-2 text-left font-semibold w-40">Incidenza</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {ud.projects.map(p => (
+                                      <tr key={p.project_id} className="border-b border-gray-100">
+                                        <td className="px-3 py-2 font-medium text-gray-700">{p.project_name}</td>
+                                        <td className="px-3 py-2 text-gray-500">{p.client_name || '—'}</td>
+                                        <td className="px-3 py-2 text-right text-green-600">{p.approved_hours > 0 ? `${p.approved_hours}h` : '—'}</td>
+                                        <td className="px-3 py-2 text-right text-amber-600">{p.pending_hours > 0 ? `${p.pending_hours}h` : '—'}</td>
+                                        <td className="px-3 py-2 text-right font-medium text-gray-700">{p.total_hours}h</td>
+                                        <td className="px-3 py-2 text-right font-semibold text-blue-600">{formatCurrency(p.total_cost)}</td>
+                                        <td className="px-3 py-2">
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                              <div className="h-full bg-blue-400 rounded-full" style={{ width: `${Math.min(p.pct, 100)}%` }} />
+                                            </div>
+                                            <span className="text-gray-500 w-10 text-right">{p.pct}%</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+
+                                    {ud.projects.length === 0 && (
+                                      <tr><td colSpan={7} className="px-3 py-3 text-center text-gray-400">Nessuna commessa nel periodo</td></tr>
+                                    )}
+
+                                    {(ud.system_projects.length > 0 || ud.overtime_hours > 0) && (
+                                      <tr className="bg-gray-100">
+                                        <td colSpan={7} className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                                          Assenze e voci non fatturabili
+                                        </td>
+                                      </tr>
+                                    )}
+
+                                    {ud.system_projects.map(p => (
+                                      <tr key={p.project_id} className="border-b border-gray-100 text-gray-500">
+                                        <td className="px-3 py-2">{p.project_name}</td>
+                                        <td className="px-3 py-2 text-gray-400">—</td>
+                                        <td className="px-3 py-2 text-right">{p.approved_hours > 0 ? `${p.approved_hours}h` : '—'}</td>
+                                        <td className="px-3 py-2 text-right">{p.pending_hours > 0 ? `${p.pending_hours}h` : '—'}</td>
+                                        <td className="px-3 py-2 text-right font-medium">{p.total_hours}h</td>
+                                        <td className="px-3 py-2 text-right font-medium">{formatCurrency(p.total_cost)}</td>
+                                        <td className="px-3 py-2">
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                              <div className="h-full bg-gray-400 rounded-full" style={{ width: `${Math.min(p.pct, 100)}%` }} />
+                                            </div>
+                                            <span className="w-10 text-right">{p.pct}%</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+
+                                    {ud.overtime_hours > 0 && (
+                                      <tr className="border-b border-gray-100 bg-orange-50">
+                                        <td className="px-3 py-2 font-medium text-orange-700">⏱ Straordinari</td>
+                                        <td className="px-3 py-2 text-gray-400">—</td>
+                                        <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                        <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                        <td className="px-3 py-2 text-right font-medium text-orange-700">{ud.overtime_hours}h</td>
+                                        <td className="px-3 py-2 text-right font-semibold text-orange-700">{formatCurrency(ud.overtime_cost)}</td>
+                                        <td className="px-3 py-2">
+                                          <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                              <div className="h-full bg-orange-400 rounded-full" style={{ width: `${Math.min(ud.overtime_pct, 100)}%` }} />
+                                            </div>
+                                            <span className="text-gray-500 w-10 text-right">{ud.overtime_pct}%</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="bg-gray-100 font-semibold text-gray-700">
+                                      <td className="px-3 py-2" colSpan={4}>Totale risorsa</td>
+                                      <td className="px-3 py-2 text-right">{ud.total_hours}h</td>
+                                      <td className="px-3 py-2 text-right text-blue-700">{formatCurrency(ud.total_cost)}</td>
+                                      <td className="px-3 py-2"></td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               ) : (

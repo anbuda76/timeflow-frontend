@@ -9,6 +9,9 @@ export const getMonthlyTrend = (params) =>
 export const getProjectDetail = (projectId, params) =>
   api.get(`/reports/projects/${projectId}/detail`, { params }).then(r => r.data);
 
+export const getUserDetail = (userId, params) =>
+  api.get(`/reports/users/${userId}/detail`, { params }).then(r => r.data);
+
 export const exportExcel = async (params) => {
   const response = await api.get('/reports/export-excel', {
     params,
