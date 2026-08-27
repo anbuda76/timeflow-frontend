@@ -340,11 +340,14 @@ function TabCostCenter() {
   const [report, setReport] = useState(null);
   const [trend, setTrend] = useState(null);
   const [loading, setLoading] = useState(false);
-  // Filtri locali tab Progetti
-  const [projSearch, setProjSearch]         = useState('');
-  const [clientSearch, setClientSearch]     = useState('');
-  const [projDropOpen, setProjDropOpen]     = useState(false);
-  const [progettiYearAll, setProgettiYearAll] = useState(false);
+  // Filtri locali tab Analisi per Progetto — Anno
+  const [projSearchAnno, setProjSearchAnno]     = useState('');
+  const [clientSearchAnno, setClientSearchAnno] = useState('');
+  const [projDropOpenAnno, setProjDropOpenAnno] = useState(false);
+  // Filtri locali tab Analisi per Progetto — Totale
+  const [projSearchTot, setProjSearchTot]       = useState('');
+  const [clientSearchTot, setClientSearchTot]   = useState('');
+  const [projDropOpenTot, setProjDropOpenTot]   = useState(false);
 
   useEffect(() => {
     getProjects().then(data => setProjects(data.filter(p => !p.is_system)));
@@ -353,46 +356,39 @@ function TabCostCenter() {
   const loadReport = async () => {
     setLoading(true);
     try {
-      if (['anno', 'progetti', 'utenti'].includes(costTab)) {
-        if (costTab === 'progetti' && progettiYearAll) {
-          // Aggrega tutti gli anni
-          const base = {};
-          if (month) base.month = month;
-          if (selectedProject) base.project_id = selectedProject;
-          const results = await Promise.all(YEARS.map(y => getCostReport({ ...base, year: y })));
-          const pMap = {};
-          results.forEach(r => {
-            (r.projects || []).forEach(p => {
-              if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0 };
-              // budget_amount è annuale: teniamo il valore del progetto (non si somma per anno)
-              if (p.budget_amount) pMap[p.project_id].budget_amount = p.budget_amount;
-              pMap[p.project_id].approved_amount  += p.approved_amount  || 0;
-              pMap[p.project_id].pending_amount   += p.pending_amount   || 0;
-              pMap[p.project_id].consuntivo_amount+= p.consuntivo_amount|| 0;
-            });
+      if (costTab === 'progetti-totale') {
+        // Aggrega tutti gli anni — senza filtro mese
+        const results = await Promise.all(YEARS.map(y => getCostReport({ year: y })));
+        const pMap = {};
+        results.forEach(r => {
+          (r.projects || []).forEach(p => {
+            if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0 };
+            if (p.budget_amount) pMap[p.project_id].budget_amount = p.budget_amount;
+            pMap[p.project_id].approved_amount  += p.approved_amount  || 0;
+            pMap[p.project_id].pending_amount   += p.pending_amount   || 0;
+            pMap[p.project_id].consuntivo_amount+= p.consuntivo_amount|| 0;
           });
-          const projects = Object.values(pMap).map(p => {
-            const delta = p.budget_amount > 0 ? p.budget_amount - p.consuntivo_amount : null;
-            const delta_pct = p.budget_amount > 0 ? Math.round((delta / p.budget_amount) * 100) : null;
-            return { ...p, delta_amount: delta, delta_amount_pct: delta_pct };
-          });
-          const totalAppr = projects.reduce((s, p) => s + p.approved_amount, 0);
-          const totalPend = projects.reduce((s, p) => s + p.pending_amount, 0);
-          setReport({ projects, users: [], total_approved_cost: totalAppr, total_pending_cost: totalPend });
-          setTrend(null);
-        } else {
-          const params = { year };
-          if (month) params.month = month;
-          if (selectedProject) params.project_id = selectedProject;
-          const [rep, trendData] = await Promise.all([
-            getCostReport(params),
-            getMonthlyTrend({ year }),
-          ]);
-          setReport(rep);
-          setTrend(trendData);
-        }
+        });
+        const aggregated = Object.values(pMap).map(p => {
+          const delta = p.budget_amount > 0 ? p.budget_amount - p.consuntivo_amount : null;
+          const delta_pct = p.budget_amount > 0 ? Math.round((delta / p.budget_amount) * 100) : null;
+          return { ...p, delta_amount: delta, delta_amount_pct: delta_pct };
+        });
+        const totalAppr = aggregated.reduce((s, p) => s + p.approved_amount, 0);
+        const totalPend = aggregated.reduce((s, p) => s + p.pending_amount, 0);
+        setReport({ projects: aggregated, users: [], total_approved_cost: totalAppr, total_pending_cost: totalPend });
+        setTrend(null);
+      } else if (['anno', 'progetti-anno', 'utenti'].includes(costTab)) {
+        const params = { year };
+        if (month) params.month = month;
+        const [rep, trendData] = await Promise.all([
+          getCostReport(params),
+          getMonthlyTrend({ year }),
+        ]);
+        setReport(rep);
+        setTrend(trendData);
       } else {
-        // Mese: sempre tutti i progetti, filtro usato solo per il dettaglio
+        // Mese: sempre tutti i progetti
         setTrend(await getMonthlyTrend({ year }));
       }
     } catch (err) {
@@ -463,10 +459,11 @@ function TabCostCenter() {
       {/* Sub-tab */}
       <div className="flex flex-wrap gap-2 mb-6">
         {[
-          { id: 'anno',      label: '📅 Snapshot Costi'       },
-          { id: 'progetti',  label: '📁 Analisi per Progetto' },
-          { id: 'utenti',    label: '👥 Analisi per Utente'   },
-          { id: 'mese',      label: '📈 Andamento Mensile'    },
+          { id: 'anno',            label: '📅 Snapshot Costi'         },
+          { id: 'progetti-anno',   label: '📁 Per Progetto — Anno'    },
+          { id: 'progetti-totale', label: '📁 Per Progetto — Totale'  },
+          { id: 'utenti',          label: '👥 Analisi per Utente'     },
+          { id: 'mese',            label: '📈 Andamento Mensile'      },
         ].map(tab => (
           <button
             key={tab.id}
@@ -484,29 +481,15 @@ function TabCostCenter() {
 
       {/* Filtri */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
-        {costTab === 'progetti' ? (
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Anno</label>
-            <select
-              value={progettiYearAll ? 'all' : year}
-              onChange={e => {
-                if (e.target.value === 'all') { setProgettiYearAll(true); }
-                else { setProgettiYearAll(false); setYear(parseInt(e.target.value)); }
-                setReport(null); setTrend(null);
-              }}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tutti gli anni</option>
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+        {costTab === 'progetti-totale' ? (
+          <div className="flex items-center gap-2 pb-1">
+            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg">📅 Tutti gli anni 2024–2027</span>
           </div>
         ) : (
           <SelectYear value={year} onChange={v => { setYear(v); setReport(null); setTrend(null); }} />
         )}
-        {['anno', 'progetti', 'utenti'].includes(costTab) && (
-          <>
-            <SelectMonth value={month} onChange={v => { setMonth(v); setReport(null); }} optional />
-          </>
+        {['anno', 'progetti-anno', 'utenti'].includes(costTab) && (
+          <SelectMonth value={month} onChange={v => { setMonth(v); setReport(null); }} optional />
         )}
         <button
           onClick={loadReport}
@@ -646,24 +629,34 @@ function TabCostCenter() {
         </>
       )}
 
-      {/* SUB-TAB PROGETTI */}
-      {costTab === 'progetti' && (
-        <>
-          {!report && !loading && (
-            <div className="bg-white rounded-xl p-12 text-center text-gray-400">
-              Seleziona i filtri e clicca "Genera Report"
-            </div>
-          )}
-          {report && (() => {
-            const clienti = [...new Set((report.projects || []).map(p => p.client_name).filter(Boolean))].sort();
-            const filteredProj = (report.projects || []).filter(p => {
-              const matchClient = !clientSearch || (p.client_name || '').toLowerCase().includes(clientSearch.toLowerCase());
-              const matchProj   = !projSearch   || (p.project_name || '').toLowerCase().includes(projSearch.toLowerCase());
-              return matchClient && matchProj;
-            });
-            const projSuggestions = projSearch
-              ? (report.projects || []).filter(p => (p.project_name || '').toLowerCase().includes(projSearch.toLowerCase())).slice(0, 8)
-              : [];
+      {/* Helper: tabella progetti riutilizzabile per Anno e Totale */}
+      {(['progetti-anno', 'progetti-totale'].includes(costTab)) && (() => {
+        const nonSystemIds = new Set(projects.map(p => p.id));
+        const isAnno = costTab === 'progetti-anno';
+        const [psearch, setPsearch]       = isAnno ? [projSearchAnno, setProjSearchAnno]   : [projSearchTot, setProjSearchTot];
+        const [csearch, setCsearch]       = isAnno ? [clientSearchAnno, setClientSearchAnno]: [clientSearchTot, setClientSearchTot];
+        const [dropOpen, setDropOpen]     = isAnno ? [projDropOpenAnno, setProjDropOpenAnno]: [projDropOpenTot, setProjDropOpenTot];
+        const label = isAnno ? year + (month ? ` — ${MONTHS[month - 1]}` : '') : 'Tutti gli anni';
+
+        return (
+          <>
+            {!report && !loading && (
+              <div className="bg-white rounded-xl p-12 text-center text-gray-400">
+                Seleziona i filtri e clicca "Genera Report"
+              </div>
+            )}
+            {report && (() => {
+              // Opzione B: filtro client-side sui progetti non-sistema
+              const onlyReal = (report.projects || []).filter(p => nonSystemIds.has(p.project_id));
+              const clienti = [...new Set(onlyReal.map(p => p.client_name).filter(Boolean))].sort();
+              const filteredProj = onlyReal.filter(p => {
+                const matchClient = !csearch || (p.client_name || '').toLowerCase().includes(csearch.toLowerCase());
+                const matchProj   = !psearch || (p.project_name || '').toLowerCase().includes(psearch.toLowerCase());
+                return matchClient && matchProj;
+              });
+              const projSuggestions = psearch
+                ? onlyReal.filter(p => (p.project_name || '').toLowerCase().includes(psearch.toLowerCase())).slice(0, 8)
+                : [];
             return (
               <>
                 {/* Filtri inline */}
@@ -673,13 +666,13 @@ function TabCostCenter() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">Cliente</label>
                     <input
                       type="text"
-                      value={clientSearch}
-                      onChange={e => setClientSearch(e.target.value)}
+                      value={csearch}
+                      onChange={e => setCsearch(e.target.value)}
                       placeholder="Cerca cliente…"
-                      list="clienti-list"
+                      list={`clienti-list-${costTab}`}
                       className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
                     />
-                    <datalist id="clienti-list">
+                    <datalist id={`clienti-list-${costTab}`}>
                       {clienti.map(c => <option key={c} value={c} />)}
                     </datalist>
                   </div>
@@ -688,19 +681,19 @@ function TabCostCenter() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">Progetto</label>
                     <input
                       type="text"
-                      value={projSearch}
-                      onChange={e => { setProjSearch(e.target.value); setProjDropOpen(true); }}
-                      onFocus={() => setProjDropOpen(true)}
-                      onBlur={() => setTimeout(() => setProjDropOpen(false), 150)}
+                      value={psearch}
+                      onChange={e => { setPsearch(e.target.value); setDropOpen(true); }}
+                      onFocus={() => setDropOpen(true)}
+                      onBlur={() => setTimeout(() => setDropOpen(false), 150)}
                       placeholder="Cerca progetto…"
                       className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
                     />
-                    {projDropOpen && projSuggestions.length > 0 && (
+                    {dropOpen && projSuggestions.length > 0 && (
                       <div className="absolute z-20 left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg w-80 max-h-48 overflow-y-auto">
                         {projSuggestions.map(p => (
                           <div
                             key={p.project_id}
-                            onMouseDown={() => { setProjSearch(p.project_name); setProjDropOpen(false); }}
+                            onMouseDown={() => { setPsearch(p.project_name); setDropOpen(false); }}
                             className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer truncate"
                           >
                             <span className="text-xs text-gray-400 mr-2">#{p.project_id}</span>{p.project_name}
@@ -709,23 +702,23 @@ function TabCostCenter() {
                       </div>
                     )}
                   </div>
-                  {(clientSearch || projSearch) && (
+                  {(csearch || psearch) && (
                     <button
-                      onClick={() => { setClientSearch(''); setProjSearch(''); }}
+                      onClick={() => { setCsearch(''); setPsearch(''); }}
                       className="text-xs text-gray-400 hover:text-gray-600 pb-1"
                     >
                       ✕ Cancella filtri
                     </button>
                   )}
                   <span className="text-xs text-gray-400 pb-2 ml-auto">
-                    {filteredProj.length} / {report.projects?.length || 0} progetti
+                    {filteredProj.length} / {onlyReal.length} progetti
                   </span>
                 </div>
 
                 <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
                   <div className="px-4 py-3 border-b flex items-center justify-between">
                     <h2 className="font-semibold text-gray-800">📁 Analisi per Progetto</h2>
-                    <span className="text-xs text-gray-400">{progettiYearAll ? 'Tutti gli anni' : year}</span>
+                    <span className="text-xs text-gray-400">{label}</span>
                   </div>
                   {filteredProj.length > 0 ? (
                     <table className="min-w-full text-sm">
@@ -773,8 +766,9 @@ function TabCostCenter() {
               </>
             );
           })()}
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* SUB-TAB UTENTI */}
       {costTab === 'utenti' && (
