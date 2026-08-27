@@ -551,11 +551,11 @@ function TabCostCenter() {
       {/* Sub-tab */}
       <div className="flex flex-wrap gap-2 mb-6">
         {[
-          { id: 'anno',            label: '📅 Snapshot Costi'         },
-          { id: 'progetti-anno',   label: '📁 Per Progetto — Anno'    },
-          { id: 'progetti-totale', label: '📁 Per Progetto — Totale'  },
-          { id: 'utenti',          label: '👥 Analisi per Utente'     },
-          { id: 'mese',            label: '📈 Andamento Mensile'      },
+          { id: 'anno',            label: '🎯 Snapshot Costi'          },
+          { id: 'progetti-totale', label: '🏛 Analisi Progetto Totale' },
+          { id: 'progetti-anno',   label: '📅 Analisi Progetto Anno'   },
+          { id: 'mese',            label: '📊 Analisi Progetto Mese'   },
+          { id: 'utenti',          label: '👥 Analisi per Utente'      },
         ].map(tab => (
           <button
             key={tab.id}
@@ -607,7 +607,7 @@ function TabCostCenter() {
           {loading ? 'Carico…' : '🔍 Genera Report'}
         </button>
         {TAB_HINTS[costTab] && (
-          <p className="text-xs text-gray-400 pb-2 flex-1 min-w-[240px] leading-relaxed">
+          <p className="text-sm text-gray-500 pb-2 flex-1 min-w-[260px] leading-relaxed">
             {TAB_HINTS[costTab]}
           </p>
         )}
