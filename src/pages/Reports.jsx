@@ -21,6 +21,20 @@ const MONTH_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott'
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
 const YEARS = [2024, 2025, 2026, 2027];
 
+// Descrizione sintetica di ogni sub-tab, mostrata accanto a "Genera Report"
+const TAB_HINTS = {
+  'anno':
+    'Fotografia economica complessiva: budget, costi sostenuti e margine residuo su tutti i progetti del periodo.',
+  'progetti-anno':
+    'Confronto budget verso costi per progetto nell’anno scelto. (Clicca una riga per il dettaglio delle risorse.)',
+  'progetti-totale':
+    'Confronto budget verso costi cumulato su tutte le annualità: utile per commesse pluriennali e per il consuntivo di fine lavori.',
+  'utenti':
+    'Costo di ciascuna risorsa nel periodo, calcolato su ore registrate e tariffa oraria.',
+  'mese':
+    'Distribuzione dei costi mese per mese nel singolo anno.',
+};
+
 const STATUS_COLORS = {
   approved:  '#22c55e',
   submitted: '#3b82f6',
@@ -337,7 +351,9 @@ function TabCostCenter() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
+  // Filtro progetto tab Andamento Mensile (combobox editabile)
+  const [meseProjSearch, setMeseProjSearch] = useState('');
+  const [meseDropOpen, setMeseDropOpen]     = useState(false);
   const [report, setReport] = useState(null);
   const [trend, setTrend] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -483,24 +499,24 @@ function TabCostCenter() {
   const cutoffMonth = Math.max(lastMonthWithData, today.getFullYear() === year ? today.getMonth() + 1 : 12);
   const visibleMonths = MONTH_SHORT.slice(0, cutoffMonth);
 
-  const trendMonthlyData = visibleMonths.map((m, i) => {
-    const point = { month: m };
-    trend?.forEach(p => {
-      point[`${p.project_name} approvato`] = p.monthly[i]?.cumulative_approved || 0;
-      point[`${p.project_name} totale`]    = p.monthly[i]?.cumulative_cost     || 0;
-      point[`${p.project_name} budget`]    = p.monthly[i]?.budget_line         || null;
-    });
-    return point;
+  // Istogramma mensilizzato: costo totale del mese su tutti i progetti
+  const monthlyTotals = visibleMonths.map((m, i) => {
+    const appr = trend?.reduce((s, p) => s + (p.monthly[i]?.approved_cost || 0), 0) || 0;
+    const att  = trend?.reduce((s, p) => s + (p.monthly[i]?.pending_cost  || 0), 0) || 0;
+    const forn = trend?.reduce((s, p) => s + (p.monthly[i]?.vendor_cost   || 0), 0) || 0;
+    return {
+      month: m,
+      Approvato:  parseFloat(appr.toFixed(2)),
+      'In attesa': parseFloat(att.toFixed(2)),
+      Fornitori:  parseFloat(forn.toFixed(2)),
+      totale:     parseFloat((appr + att + forn).toFixed(2)),
+    };
   });
 
-  const trendMonthlyCosts = visibleMonths.map((m, i) => {
-    const point = { month: m };
-    trend?.forEach(p => {
-      point[`${p.project_name} appr.`] = p.monthly[i]?.approved_cost || 0;
-      point[`${p.project_name} att.`]  = p.monthly[i]?.pending_cost  || 0;
-    });
-    return point;
-  });
+  const annoTotale  = monthlyTotals.reduce((s, m) => s + m.totale, 0);
+  const mesiAttivi  = monthlyTotals.filter(m => m.totale > 0).length;
+  const mediaMensile = mesiAttivi > 0 ? annoTotale / mesiAttivi : 0;
+  const mesePicco   = monthlyTotals.reduce((max, m) => m.totale > (max?.totale || 0) ? m : max, null);
 
   // Grafico aggregato: somma tutti i progetti per mese
   // Il budget è il tetto complessivo dei progetti attivi nel periodo: linea costante
@@ -514,8 +530,8 @@ function TabCostCenter() {
   }));
 
   // Dettaglio filtrato per progetto selezionato
-  const detailTrend = selectedProject
-    ? trend?.filter(p => p.project_id === selectedProject) ?? []
+  const detailTrend = meseProjSearch
+    ? (trend ?? []).filter(p => (p.project_name || '').toLowerCase().includes(meseProjSearch.toLowerCase()))
     : trend ?? [];
 
   return (
@@ -590,6 +606,11 @@ function TabCostCenter() {
         >
           {loading ? 'Carico…' : '🔍 Genera Report'}
         </button>
+        {TAB_HINTS[costTab] && (
+          <p className="text-xs text-gray-400 pb-2 flex-1 min-w-[240px] leading-relaxed">
+            {TAB_HINTS[costTab]}
+          </p>
+        )}
       </div>
 
       {/* SUB-TAB ANNO */}
@@ -1083,50 +1104,106 @@ function TabCostCenter() {
           )}
           {trend && trend.length > 0 && (
             <>
-              {/* Filtro progetto per il dettaglio */}
-              <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex items-end gap-4">
-                <div>
+              {/* Filtro progetto per il dettaglio (combobox editabile) */}
+              <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap items-end gap-4">
+                <div className="relative">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Filtra dettaglio per progetto</label>
-                  <select
-                    value={selectedProject || ''}
-                    onChange={e => setSelectedProject(e.target.value ? parseInt(e.target.value) : null)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Tutti i progetti</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <input
+                    type="text"
+                    value={meseProjSearch}
+                    onChange={e => { setMeseProjSearch(e.target.value); setMeseDropOpen(true); }}
+                    onFocus={() => setMeseDropOpen(true)}
+                    onBlur={() => setTimeout(() => setMeseDropOpen(false), 150)}
+                    placeholder="Cerca progetto…"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                  />
+                  {meseDropOpen && (() => {
+                    const sugg = (trend ?? [])
+                      .filter(p => !meseProjSearch || (p.project_name || '').toLowerCase().includes(meseProjSearch.toLowerCase()))
+                      .slice(0, 8);
+                    if (sugg.length === 0) return null;
+                    return (
+                      <div className="absolute z-20 left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg w-80 max-h-48 overflow-y-auto">
+                        {sugg.map(p => (
+                          <div
+                            key={p.project_id}
+                            onMouseDown={() => { setMeseProjSearch(p.project_name); setMeseDropOpen(false); }}
+                            className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer truncate"
+                          >
+                            <span className="text-xs text-gray-400 mr-2">#{p.project_id}</span>{p.project_name}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
-                <p className="text-xs text-gray-400 pb-2">
-                  {selectedProject
-                    ? `Visualizzando: ${projects.find(p => p.id === selectedProject)?.name}`
-                    : `${trend.length} progetti nel periodo`}
+                {meseProjSearch && (
+                  <button
+                    onClick={() => setMeseProjSearch('')}
+                    className="text-xs text-gray-400 hover:text-gray-600 pb-3"
+                  >
+                    ✕ Cancella filtro
+                  </button>
+                )}
+                <p className="text-xs text-gray-400 pb-3 ml-auto">
+                  {detailTrend.length} / {trend.length} progetti nel periodo
                 </p>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                <h2 className="font-semibold text-gray-800 mb-1">💶 Costi € mensili per progetto</h2>
-                <p className="text-xs text-gray-400 mb-4">Verde = approvati · Arancione = in attesa — colori per progetto</p>
+                <h2 className="font-semibold text-gray-800 mb-1">💶 Costi totali mensili — {year}</h2>
+                <p className="text-xs text-gray-400 mb-4">
+                  Costo complessivo di ogni mese su tutti i progetti, suddiviso per stato
+                </p>
+
+                {/* KPI di sintesi */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 text-center">
+                    <p className="text-base font-bold text-blue-600">{formatCurrency(annoTotale)}</p>
+                    <p className="text-[11px] text-gray-500">Totale anno</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 text-center">
+                    <p className="text-base font-bold text-gray-700">{formatCurrency(mediaMensile)}</p>
+                    <p className="text-[11px] text-gray-500">Media mensile ({mesiAttivi} mesi attivi)</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 text-center">
+                    <p className="text-base font-bold text-gray-700">
+                      {mesePicco && mesePicco.totale > 0 ? formatCurrency(mesePicco.totale) : '—'}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      Mese di picco{mesePicco && mesePicco.totale > 0 ? ` (${mesePicco.month})` : ''}
+                    </p>
+                  </div>
+                </div>
+
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={trendMonthlyCosts} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <BarChart data={monthlyTotals} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${(v/1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT')}`, name]} />
-                    {trend.map((p, i) => ([
-                      <Bar key={`${p.project_id}-appr`} dataKey={`${p.project_name} appr.`}
-                        fill={COLORS[i % COLORS.length]} stackId={`p${p.project_id}`} />,
-                      <Bar key={`${p.project_id}-att`} dataKey={`${p.project_name} att.`}
-                        fill={COLORS[i % COLORS.length]} stackId={`p${p.project_id}`} opacity={0.4} />,
-                    ]))}
+                    <Tooltip
+                      formatter={(val, name) => [`€${parseFloat(val).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name]}
+                      labelFormatter={(l) => {
+                        const row = monthlyTotals.find(m => m.month === l);
+                        return `${l} — totale ${formatCurrency(row?.totale || 0)}`;
+                      }}
+                    />
+                    <Bar dataKey="Approvato"  stackId="tot" fill="#22c55e" />
+                    <Bar dataKey="In attesa"  stackId="tot" fill="#f59e0b" />
+                    <Bar dataKey="Fornitori"  stackId="tot" fill="#a855f7" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-                <div className="flex flex-wrap gap-3 mt-2 px-2">
-                  {trend.map((p, i) => (
-                    <span key={p.project_id} className="flex items-center gap-1.5 text-xs text-gray-600">
-                      <span className="w-3 h-3 rounded-full inline-block" style={{ background: COLORS[i % COLORS.length] }} />
-                      {p.project_name}
-                    </span>
-                  ))}
+
+                <div className="flex flex-wrap gap-4 mt-2 px-2 text-xs text-gray-600">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm inline-block bg-green-500" />Approvato
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm inline-block bg-amber-500" />In attesa
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm inline-block bg-purple-500" />Fornitori
+                  </span>
                 </div>
               </div>
 
@@ -1142,16 +1219,17 @@ function TabCostCenter() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-2 text-left font-semibold text-gray-700">Mese</th>
-                        <th className="px-3 py-2 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Costo appr.</th>
-                        <th className="px-3 py-2 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Costo att.</th>
-                        <th className="px-4 py-2 text-right font-semibold text-gray-700">Cum. approvato</th>
-                        <th className="px-4 py-2 text-right font-semibold text-gray-700">Cum. totale</th>
-                        <th className="px-4 py-2 text-right font-semibold text-gray-700">% budget</th>
+                        <th className="px-3 py-2 text-right font-semibold text-green-700 bg-green-50 border-x border-green-100">Costo approvato</th>
+                        <th className="px-3 py-2 text-right font-semibold text-amber-600 bg-amber-50 border-x border-amber-100">Costo atteso</th>
+                        <th className="px-3 py-2 text-right font-semibold text-purple-600 bg-purple-50 border-x border-purple-100">Costo fornitori</th>
+                        <th className="px-4 py-2 text-right font-semibold text-blue-700">Totale costo</th>
                       </tr>
                     </thead>
                     <tbody>
                       {p.monthly.slice(0, cutoffMonth).map(m => {
-                        const noData = m.hours === 0;
+                        const vend  = m.vendor_cost || 0;
+                        const tot   = (m.approved_cost || 0) + (m.pending_cost || 0) + vend;
+                        const noData = tot === 0;
                         return (
                           <tr key={m.month} className={`border-b hover:bg-gray-50 ${noData ? 'opacity-40' : ''}`}>
                             <td className="px-4 py-2 text-gray-700 flex items-center gap-1">
@@ -1160,27 +1238,29 @@ function TabCostCenter() {
                             </td>
                             <td className="px-3 py-2 text-right text-green-600 font-medium bg-green-50 border-x border-green-100">{m.approved_cost > 0 ? formatCurrency(m.approved_cost) : '—'}</td>
                             <td className="px-3 py-2 text-right text-amber-600 font-medium bg-amber-50 border-x border-amber-100">{m.pending_cost > 0 ? formatCurrency(m.pending_cost) : '—'}</td>
-                            <td className="px-4 py-2 text-right font-medium text-green-600">{noData ? '—' : formatCurrency(m.cumulative_approved)}</td>
-                            <td className="px-4 py-2 text-right font-medium text-blue-600">{noData ? '—' : formatCurrency(m.cumulative_cost)}</td>
-                            <td className="px-4 py-2 text-right">
-                              {m.budget_pct == null ? (
-                                <span className="text-gray-400">—</span>
-                              ) : (
-                                <div className="flex items-center justify-end gap-2">
-                                  <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                    <div className={`h-full rounded-full ${m.budget_pct > 100 ? 'bg-red-500' : 'bg-blue-400'}`}
-                                         style={{ width: `${Math.min(m.budget_pct, 100)}%` }} />
-                                  </div>
-                                  <span className={`w-12 text-right ${m.budget_pct > 100 ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
-                                    {noData ? '—' : `${m.budget_pct}%`}
-                                  </span>
-                                </div>
-                              )}
-                            </td>
+                            <td className="px-3 py-2 text-right text-purple-600 font-medium bg-purple-50 border-x border-purple-100">{vend > 0 ? formatCurrency(vend) : '—'}</td>
+                            <td className="px-4 py-2 text-right font-medium text-blue-600">{noData ? '—' : formatCurrency(tot)}</td>
                           </tr>
                         );
                       })}
                     </tbody>
+                    <tfoot>
+                      {(() => {
+                        const rows = p.monthly.slice(0, cutoffMonth);
+                        const sAppr = rows.reduce((s, m) => s + (m.approved_cost || 0), 0);
+                        const sAtt  = rows.reduce((s, m) => s + (m.pending_cost  || 0), 0);
+                        const sVend = rows.reduce((s, m) => s + (m.vendor_cost   || 0), 0);
+                        return (
+                          <tr className="bg-gray-100 font-semibold text-gray-700">
+                            <td className="px-4 py-2">Totale {year}</td>
+                            <td className="px-3 py-2 text-right text-green-700">{sAppr > 0 ? formatCurrency(sAppr) : '—'}</td>
+                            <td className="px-3 py-2 text-right text-amber-700">{sAtt > 0 ? formatCurrency(sAtt) : '—'}</td>
+                            <td className="px-3 py-2 text-right text-purple-700">{sVend > 0 ? formatCurrency(sVend) : '—'}</td>
+                            <td className="px-4 py-2 text-right text-blue-700">{formatCurrency(sAppr + sAtt + sVend)}</td>
+                          </tr>
+                        );
+                      })()}
+                    </tfoot>
                   </table>
                 </div>
               ))}
