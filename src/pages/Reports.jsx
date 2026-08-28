@@ -453,12 +453,15 @@ function TabCostCenter() {
         const yearly = [];
         results.forEach((r, idx) => {
           (r.projects || []).forEach(p => {
-            if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0, vendor_cost: 0 };
+            if (!pMap[p.project_id]) pMap[p.project_id] = { ...p, approved_amount: 0, pending_amount: 0, consuntivo_amount: 0, vendor_cost: 0, vendor_cost_undated: 0 };
             if (p.budget_amount) pMap[p.project_id].budget_amount = p.budget_amount;
             pMap[p.project_id].approved_amount  += p.approved_amount  || 0;
             pMap[p.project_id].pending_amount   += p.pending_amount   || 0;
             pMap[p.project_id].consuntivo_amount+= p.consuntivo_amount|| 0;
-            pMap[p.project_id].vendor_cost      += p.vendor_cost      || 0;
+            // Solo i costi fornitori datati si sommano per anno; quelli senza
+            // data non appartengono a un'annualità e vanno contati una volta.
+            pMap[p.project_id].vendor_cost      += (p.vendor_cost || 0) - (p.vendor_cost_undated || 0);
+            if (p.vendor_cost_undated) pMap[p.project_id].vendor_cost_undated = p.vendor_cost_undated;
           });
           (r.users || []).forEach(u => {
             if (!uMap[u.user_id]) uMap[u.user_id] = { ...u, approved_hours: 0, pending_hours: 0, approved_cost: 0, pending_cost: 0, hours: 0, cost: 0 };
@@ -475,7 +478,7 @@ function TabCostCenter() {
           });
         });
         const aggregated = Object.values(pMap).map(p => {
-          const vendor_cost = p.vendor_cost || 0;
+          const vendor_cost = (p.vendor_cost || 0) + (p.vendor_cost_undated || 0);
           const total_amount = p.consuntivo_amount + vendor_cost;
           const delta = p.budget_amount > 0 ? p.budget_amount - total_amount : null;
           const delta_pct = p.budget_amount > 0 ? Math.round((delta / p.budget_amount) * 100) : null;

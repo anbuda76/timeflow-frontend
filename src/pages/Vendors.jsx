@@ -188,6 +188,9 @@ function TabCosti() {
   const [form, setForm] = useState(emptyCost);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Combobox progetto nel modale
+  const [projQuery, setProjQuery]       = useState('');
+  const [projDropOpen, setProjDropOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([getVendorCosts(), getVendors(), getProjects()])
@@ -207,17 +210,21 @@ function TabCosti() {
 
   const totalFiltered = filtered.reduce((s, c) => s + (c.amount || 0), 0);
 
-  const openCreate = () => { setEditing(null); setForm(emptyCost); setError(''); setShowModal(true); };
+  const openCreate = () => {
+    setEditing(null); setForm(emptyCost); setProjQuery(''); setProjDropOpen(false);
+    setError(''); setShowModal(true);
+  };
   const openEdit = (c) => {
     setEditing(c);
     setForm({ vendor_id: c.vendor_id, project_id: c.project_id, amount: c.amount, cost_date: c.cost_date || '', description: c.description || '', category: c.category || '' });
-    setError('');
-    setShowModal(true);
+    setProjQuery(projects.find(p => p.id === c.project_id)?.name || c.project_name || '');
+    setProjDropOpen(false);
+    setError(''); setShowModal(true);
   };
 
   const handleSave = async () => {
     if (!form.vendor_id) { setError('Seleziona un fornitore'); return; }
-    if (!form.project_id) { setError('Seleziona un progetto'); return; }
+    if (!form.project_id) { setError('Seleziona un progetto dall’elenco dei suggerimenti'); return; }
     if (!form.amount || parseFloat(form.amount) <= 0) { setError('Inserisci un importo valido'); return; }
     setSaving(true); setError('');
     try {
@@ -332,13 +339,70 @@ function TabCosti() {
                 {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
               </select>
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-xs font-medium text-gray-700 mb-1">Progetto *</label>
-              <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Seleziona progetto…</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}{p.client_name ? ` — ${p.client_name}` : ''}</option>)}
-              </select>
+              <input
+                type="text"
+                value={projQuery}
+                onChange={e => {
+                  setProjQuery(e.target.value);
+                  setProjDropOpen(true);
+                  setForm(f => ({ ...f, project_id: '' }));
+                }}
+                onFocus={() => setProjDropOpen(true)}
+                onBlur={() => setTimeout(() => setProjDropOpen(false), 150)}
+                placeholder="Digita per cercare il progetto…"
+                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  form.project_id ? 'border-green-400 bg-green-50' : 'border-gray-300'
+                }`}
+              />
+              {form.project_id && (
+                <span className="absolute right-3 top-[30px] text-green-600 text-sm">✓</span>
+              )}
+              {projDropOpen && (() => {
+                const q = projQuery.trim().toLowerCase();
+                const sugg = projects
+                  .filter(p => !q || `${p.name} ${p.client_name || ''}`.toLowerCase().includes(q))
+                  .slice(0, 10);
+                if (sugg.length === 0) {
+                  return (
+                    <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-xs text-gray-400">
+                      Nessun progetto trovato
+                    </div>
+                  );
+                }
+                return (
+                  <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                    {sugg.map(p => (
+                      <div
+                        key={p.id}
+                        onMouseDown={() => {
+                          setForm(f => ({ ...f, project_id: p.id }));
+                          setProjQuery(p.name);
+                          setProjDropOpen(false);
+                        }}
+                        className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400 font-mono shrink-0">#{p.id}</span>
+                          <span className="truncate">{p.name}</span>
+                        </div>
+                        {p.client_name && (
+                          <p className="text-xs text-gray-400 ml-8 truncate">{p.client_name}</p>
+                        )}
+                      </div>
+                    ))}
+                    {projects.filter(p => {
+                      const q2 = projQuery.trim().toLowerCase();
+                      return !q2 || `${p.name} ${p.client_name || ''}`.toLowerCase().includes(q2);
+                    }).length > 10 && (
+                      <p className="px-3 py-1.5 text-xs text-gray-400 bg-gray-50">
+                        Affina la ricerca per vedere altri risultati
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Importo € *</label>
