@@ -1042,11 +1042,6 @@ function TabCostCenter() {
                                           if (groups.length === 0) return null;
                                           return (
                                             <>
-                                              <tr className="bg-purple-50">
-                                                <td colSpan={7} className="px-3 py-1.5 text-[11px] font-semibold text-purple-600 uppercase tracking-wide">
-                                                  Fornitori
-                                                </td>
-                                              </tr>
                                               {groups.map(g => (
                                                 <tr key={`v-${g.id}`} className="border-b border-gray-100">
                                                   <td className="px-3 py-2 font-medium text-purple-700">
