@@ -1027,25 +1027,50 @@ function TabCostCenter() {
                                           </tr>
                                         ))}
 
-                                        {/* Riga fornitori */}
-                                        {detail.vendor_cost > 0 && (
-                                          <tr className="border-b border-gray-100 bg-purple-50">
-                                            <td className="px-3 py-2 font-medium text-purple-700">🏢 Costi fornitori</td>
-                                            <td className="px-3 py-2 text-right text-gray-400">—</td>
-                                            <td className="px-3 py-2 text-right text-gray-400">—</td>
-                                            <td className="px-3 py-2 text-right text-gray-400">—</td>
-                                            <td className="px-3 py-2 text-right text-gray-400">—</td>
-                                            <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(detail.vendor_cost)}</td>
-                                            <td className="px-3 py-2">
-                                              <div className="flex items-center gap-2">
-                                                <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                  <div className="h-full bg-purple-400 rounded-full" style={{ width: `${Math.min(detail.vendor_pct, 100)}%` }} />
-                                                </div>
-                                                <span className="text-gray-500 w-10 text-right">{detail.vendor_pct}%</span>
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        )}
+                                        {/* Righe fornitori, una per fornitore */}
+                                        {(() => {
+                                          const groups = Object.values(
+                                            (detail.vendor_costs || []).reduce((acc, v) => {
+                                              if (!acc[v.vendor_id]) acc[v.vendor_id] = { id: v.vendor_id, name: v.vendor_name, amount: 0, count: 0 };
+                                              acc[v.vendor_id].amount += v.amount;
+                                              acc[v.vendor_id].count += 1;
+                                              return acc;
+                                            }, {})
+                                          )
+                                            .map(g => ({ ...g, pct: detail.total_cost ? Math.round(g.amount / detail.total_cost * 1000) / 10 : 0 }))
+                                            .sort((a, b) => b.amount - a.amount);
+                                          if (groups.length === 0) return null;
+                                          return (
+                                            <>
+                                              <tr className="bg-purple-50">
+                                                <td colSpan={7} className="px-3 py-1.5 text-[11px] font-semibold text-purple-600 uppercase tracking-wide">
+                                                  Fornitori
+                                                </td>
+                                              </tr>
+                                              {groups.map(g => (
+                                                <tr key={`v-${g.id}`} className="border-b border-gray-100">
+                                                  <td className="px-3 py-2 font-medium text-purple-700">
+                                                    {g.name}
+                                                    {g.count > 1 && <span className="text-gray-400 font-normal ml-1.5">({g.count} voci)</span>}
+                                                  </td>
+                                                  <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                                  <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                                  <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                                  <td className="px-3 py-2 text-right text-gray-400">—</td>
+                                                  <td className="px-3 py-2 text-right font-semibold text-purple-700">{formatCurrency(g.amount)}</td>
+                                                  <td className="px-3 py-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-purple-400 rounded-full" style={{ width: `${Math.min(g.pct, 100)}%` }} />
+                                                      </div>
+                                                      <span className="text-gray-500 w-10 text-right">{g.pct}%</span>
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                            </>
+                                          );
+                                        })()}
                                       </tbody>
                                       <tfoot>
                                         <tr className="bg-gray-100 font-semibold text-gray-700">
